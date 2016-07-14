@@ -23,8 +23,46 @@
  */
 package org.jenkinsci.plugins.resourcedisposer;
 
-/**
- * @author ogondza.
- */
+import hudson.FilePath;
+import jenkins.model.Jenkins;
+import org.hamcrest.Matchers;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runners.model.Statement;
+import org.jvnet.hudson.test.RestartableJenkinsRule;
+
+import java.util.Set;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 public class PersistenceTest {
+    @Rule
+    public RestartableJenkinsRule j = new RestartableJenkinsRule();
+
+    @Test
+    public void persistEntries() throws Exception {
+        j.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+                disposer.dispose(new FailingDisposable());
+                checkItem(disposer.getBacklog());
+            }
+        });
+        j.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+                checkItem(disposer.getBacklog());
+            }
+        });
+    }
+
+    private void checkItem(Set<AsyncResourceDisposer.WorkItem> backlog) {
+        assertThat(backlog, Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(1));
+        AsyncResourceDisposer.WorkItem item = backlog.iterator().next();
+        assertThat(item.getDisposable(), Matchers.instanceOf(FailingDisposable.class));
+        assertThat(item.getLastState(), Matchers.instanceOf(AsyncResourceDisposer.WorkItem.Failed.class));
+        AsyncResourceDisposer.WorkItem.Failed failure = (AsyncResourceDisposer.WorkItem.Failed) item.getLastState();
+        assertThat(failure.getCause().getMessage(), equalTo(FailingDisposable.EXCEPTION.getMessage()));
+    }
 }

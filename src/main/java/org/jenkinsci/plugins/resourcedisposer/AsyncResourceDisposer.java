@@ -23,28 +23,30 @@
  */
 package org.jenkinsci.plugins.resourcedisposer;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import hudson.Extension;
+import hudson.XmlFile;
 import hudson.model.AdministrativeMonitor;
+import hudson.model.Computer;
 import hudson.model.PeriodicWork;
-import hudson.util.DaemonThreadFactory;
-import hudson.util.ExceptionCatchingThreadFactory;
-import hudson.util.NamingThreadFactory;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.Nonnull;
-import javax.inject.Inject;
 
 /**
  * Track resources to be disposed asynchronously.
@@ -55,18 +57,15 @@ import javax.inject.Inject;
  * @author ogondza
  * @see Disposable
  */
-public class AsyncResourceDisposer extends AdministrativeMonitor {
+@Extension
+public class AsyncResourceDisposer extends AdministrativeMonitor implements Serializable {
 
-    @Extension @Restricted(NoExternalUse.class)
-    public static final AsyncResourceDisposer ard = new AsyncResourceDisposer();
-
-    @Extension @Restricted(NoExternalUse.class)
-    public static final Scheduler scheduler = new Scheduler(ard);
-
-    private static final ThreadPoolExecutor worker = new ThreadPoolExecutor (
+    private static final ExecutorService worker = Computer.threadPoolForRemoting;
+    private static final Logger LOGGER = Logger.getLogger(AsyncResourceDisposer.class.getName());
+    /*new ThreadPoolExecutor (
             0, 1, 5L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(),
             new ExceptionCatchingThreadFactory(new NamingThreadFactory(new DaemonThreadFactory(), "AsyncResourceDisposer"))
-    );
+    );*/
 
     /**
      * Persist all entries to dispose in order to survive restart.
@@ -74,7 +73,14 @@ public class AsyncResourceDisposer extends AdministrativeMonitor {
     private final @Nonnull Set<WorkItem> backlog = Collections.newSetFromMap(new ConcurrentHashMap<WorkItem, Boolean>());
 
     public static @Nonnull AsyncResourceDisposer get() {
-        return Jenkins.getInstance().getExtensionList(AsyncResourceDisposer.class).get(0);
+        Jenkins instance = Jenkins.getInstance();
+        if (instance == null) throw new IllegalStateException();
+        return (AsyncResourceDisposer) instance.getAdministrativeMonitor("AsyncResourceDisposer");
+    }
+
+    public AsyncResourceDisposer() {
+        super("AsyncResourceDisposer");
+        load();
     }
 
     @Override
@@ -89,20 +95,64 @@ public class AsyncResourceDisposer extends AdministrativeMonitor {
 
     /**
      * Schedule resource to be disposed.
+     *
+     * @param disposable Resource wrapper to be deleted.
      */
     public void dispose(final @Nonnull Disposable disposable) {
         WorkItem item = new WorkItem(this, disposable);
         backlog.add(item);
+        persist();
         submit(item);
+    }
+
+    /**
+     * Force rescheduling of all tracked tasks.
+     *
+     * @deprecated Only exposed for testing
+     */
+    @Deprecated
+    public void reschedule() {
+        for (WorkItem workItem: getBacklog()) {
+            submit(workItem);
+        }
     }
 
     private void submit(WorkItem item) {
         if (item.inProgress) {
-            System.out.println("Skipping " + item.getDisposable() + " as already in progress");
             return;
         }
-        System.out.println("Scheduling " + item.getDisposable() + " while " + worker.getQueue());
         worker.submit(item);
+    }
+
+    private void persist() {
+        try {
+            for (WorkItem item : getBacklog()) {
+                System.out.println("Saving " + item.lastState);
+            }
+            getConfigFile().write(this);
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Unable to store AsyncResourceDisposer history", e);
+        }
+    }
+
+    private void load() {
+        final XmlFile file = getConfigFile();
+        if (file.exists()) {
+            try {
+                file.unmarshal(this);
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Unable to load AsyncResourceDisposer history", e);
+            }
+        }
+    }
+
+    private XmlFile getConfigFile() {
+        Jenkins instance = Jenkins.getInstance();
+        if (instance == null) throw new IllegalStateException();
+        return new XmlFile(Jenkins.XSTREAM, new File(new File(
+                instance.root,
+                getClass().getCanonicalName() + ".xml"
+        ).getAbsolutePath()));
     }
 
     /**
@@ -110,16 +160,24 @@ public class AsyncResourceDisposer extends AdministrativeMonitor {
      */
     @Restricted(NoExternalUse.class)
     public static final class WorkItem implements Runnable, Serializable {
+        private static final long serialVersionUID = 1L;
+
         private final @Nonnull AsyncResourceDisposer disposer;
 
         private final @Nonnull Disposable disposable;
         private final @Nonnull Date registered = new Date();
-        private transient @Nonnull Disposable.State lastState = Disposable.State.DISPOSE;
-        private transient boolean inProgress = false;
+        private volatile @Nonnull Disposable.State lastState = Disposable.State.DISPOSE;
+        private volatile transient boolean inProgress;
 
         private WorkItem(AsyncResourceDisposer disposer, Disposable disposable) {
             this.disposer = disposer;
             this.disposable = disposable;
+            readResolve();
+        }
+
+        private Object readResolve() {
+            inProgress = false;
+            return this;
         }
 
         public @Nonnull Disposable getDisposable() {
@@ -127,7 +185,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor {
         }
 
         public @Nonnull Date getRegistered() {
-            return registered;
+            return new Date(registered.getTime());
         }
 
         public @Nonnull Disposable.State getLastState() {
@@ -136,7 +194,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor {
 
         @Override
         public String toString() {
-            return "Disposer work item: " + disposable;
+            return "Disposer work item: " + disposable.getDisplayName();
         }
 
         public void run() {
@@ -150,6 +208,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor {
                 lastState = new Failed(ex);
             } finally {
                 inProgress = false;
+                disposer.persist();
             }
         }
 
@@ -186,21 +245,14 @@ public class AsyncResourceDisposer extends AdministrativeMonitor {
      *
      * @author ogondza
      */
-    @Restricted(NoExternalUse.class)
+    @Restricted(DoNotUse.class)
+    @Extension
     public static class Scheduler extends PeriodicWork {
-
-        private AsyncResourceDisposer disposer;
-
-        @Inject // Needed to make guice happy
-        public Scheduler(AsyncResourceDisposer disposer) {
-            this.disposer = disposer;
-        }
 
         @Override
         public void doRun() throws Exception {
-            for (WorkItem workItem: disposer.getBacklog()) {
-                disposer.submit(workItem);
-            }
+            //noinspection deprecation
+            AsyncResourceDisposer.get().reschedule();
         }
 
         @Override

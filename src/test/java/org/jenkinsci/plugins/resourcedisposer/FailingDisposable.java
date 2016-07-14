@@ -26,18 +26,21 @@ package org.jenkinsci.plugins.resourcedisposer;
 import java.io.IOException;
 
 /**
- * @author ogondza.
+ * Fail attempts to dispose the resource every time.
  */
 class FailingDisposable implements Disposable {
     private static final long serialVersionUID = 1L;
 
+    public static final String NAME = "Failing disposable";
+    public static final IOException EXCEPTION = new IOException("Unable to dispose");
+
     @Override
     public State dispose() throws Exception {
-        throw new IOException("Unable to dispose");
+        throw EXCEPTION;
     }
 
     @Override
     public String getDisplayName() {
-        return "Failing disposable";
+        return NAME;
     }
 }

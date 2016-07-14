@@ -23,6 +23,8 @@
  */
 package org.jenkinsci.plugins.resourcedisposer;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -30,12 +32,22 @@ import static org.mockito.Mockito.*;
 import java.io.IOException;
 import java.util.Set;
 
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
 
-public class UnitTest {
+public class AsyncResourceDisposerTest {
 
-    private AsyncResourceDisposer disposer = new AsyncResourceDisposer();
-    private AsyncResourceDisposer.Scheduler scheduler = new AsyncResourceDisposer.Scheduler(disposer);
+    @Rule public final JenkinsRule j = new JenkinsRule();
+
+    private AsyncResourceDisposer disposer;
+
+    @Before
+    public void setUp() {
+        disposer = AsyncResourceDisposer.get();
+    }
 
     @Test
     public void disposeImmediately() throws Exception {
@@ -58,7 +70,7 @@ public class UnitTest {
 
         disposer.dispose(disposable);
         Thread.sleep(100);
-        scheduler.doRun();
+        disposer.reschedule();
         Thread.sleep(100);
 
         Set<AsyncResourceDisposer.WorkItem> remaining = disposer.getBacklog();
@@ -80,9 +92,9 @@ public class UnitTest {
 
         disposer.dispose(disposable);
         Thread.sleep(100);
-        scheduler.doRun();
+        disposer.reschedule();
         Thread.sleep(100);
-        scheduler.doRun();
+        disposer.reschedule();
         Thread.sleep(100);
 
         assertThat(disposer.getBacklog(), empty());
@@ -110,9 +122,9 @@ public class UnitTest {
         disposer.dispose(postponed);
 
         Thread.sleep(100);
-        scheduler.doRun();
+        disposer.reschedule();
         Thread.sleep(100);
-        scheduler.doRun();
+        disposer.reschedule();
         Thread.sleep(100);
 
         verify(noProblem, times(2)).dispose();
@@ -120,5 +132,20 @@ public class UnitTest {
         verify(postponed, times(3)).dispose();
         assertEquals(1, disposer.getBacklog().size());
         assertEquals(problem, disposer.getBacklog().iterator().next().getDisposable());
+    }
+
+    @Test
+    public void showProblems() throws Exception {
+        disposer = AsyncResourceDisposer.get();
+        disposer.dispose(new FailingDisposable());
+
+        Thread.sleep(1000);
+
+        JenkinsRule.WebClient wc = j.createWebClient();
+        HtmlPage manage = wc.goTo("manage");
+        assertThat(manage.asText(), containsString("There are resources Jenkins was not able to dispose automatically"));
+        HtmlPage report = wc.goTo(disposer.getUrl());
+        assertThat(report.asText(), containsString("Failing disposable"));
+        assertThat(report.asText(), containsString("IOException: Unable to dispose"));
     }
 }

@@ -37,14 +37,18 @@ import java.io.Serializable;
  * externally. This is expected in case resource get disposed by administrator
  * after failed attempts was reported.
  *
+ * In case the resource is external to Jenkins and can survive Jenkins restart,
+ * The implementation needs to be able to correctly locate the resource once deserialized.
+ *
  * @author ogondza
+ * @see AsyncResourceDisposer#dispose(Disposable)
  */
 public interface Disposable extends Serializable {
 
     /**
      * Dispose the resource.
      *
-     * @return State of the resource after the atempt.
+     * @return State of the resource after the attempt.
      * @throws Exception Problem disposing the resource.
      */
     @Nonnull State dispose() throws Exception;
@@ -57,9 +61,9 @@ public interface Disposable extends Serializable {
      */
     @Nonnull String getDisplayName();
 
-    abstract class State {
-        public static @Nonnull State DISPOSE = new Dispose();
-        public static @Nonnull State PURGED = new Purged();
+    abstract class State implements Serializable {
+        public static final @Nonnull State DISPOSE = new Dispose();
+        public static final @Nonnull State PURGED = new Purged();
 
         private final String displayName;
 
