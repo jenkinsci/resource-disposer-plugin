@@ -35,7 +35,7 @@ import org.jvnet.hudson.test.JenkinsRule.WebClient;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
-public class AsyncResourceDisposer2Test {
+public class FunctionalTest {
 
     @Rule public final JenkinsRule j = new JenkinsRule();
 

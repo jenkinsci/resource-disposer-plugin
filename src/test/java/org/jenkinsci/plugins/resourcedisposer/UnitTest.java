@@ -32,7 +32,7 @@ import java.util.Set;
 
 import org.junit.Test;
 
-public class AsyncResourceDisposerTest {
+public class UnitTest {
 
     private AsyncResourceDisposer disposer = new AsyncResourceDisposer();
     private AsyncResourceDisposer.Scheduler scheduler = new AsyncResourceDisposer.Scheduler(disposer);
