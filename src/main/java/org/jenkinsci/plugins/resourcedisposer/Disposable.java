@@ -40,6 +40,9 @@ import java.io.Serializable;
  * In case the resource is external to Jenkins and can survive Jenkins restart,
  * The implementation needs to be able to correctly locate the resource once deserialized.
  *
+ * As long as the Disposable is used by {@link AsyncResourceDisposer} only, it is
+ * guaranteed to never run in more than one thread at a time.
+ *
  * @author ogondza
  * @see AsyncResourceDisposer#dispose(Disposable)
  */
@@ -87,27 +90,4 @@ public interface Disposable extends Serializable {
             }
         }
     }
-
-//        public static final class Register extends SlaveToMasterCallable<Boolean, RuntimeException> {
-//            private static final long serialVersionUID = 1L;
-//
-//            private final Disposable disposable;
-//
-//            public Register(Disposable disposable) {
-//                this.disposable = disposable;
-//            }
-//
-//            /**
-//             * Register disposable to {@link AsyncResourceDisposer} over channel from slave.
-//             *
-//             * @return false if failed to register because we are not talking to master.
-//             */
-//            public final Boolean call() throws RuntimeException {
-//                if (Jenkins.getInstance() == null) return false;
-//
-//                AsyncResourceDisposer disposer = AdministrativeMonitor.all().get(AsyncResourceDisposer.class);
-//                disposer.dispose(disposable);
-//                return true;
-//            }
-//        }
 }

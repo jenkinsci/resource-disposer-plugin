@@ -25,7 +25,6 @@ package org.jenkinsci.plugins.resourcedisposer;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Date;
@@ -102,7 +101,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         WorkItem item = new WorkItem(this, disposable);
         backlog.add(item);
         persist();
-        submit(item);
+        worker.submit(item);
     }
 
     /**
@@ -113,15 +112,10 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     @Deprecated
     public void reschedule() {
         for (WorkItem workItem: getBacklog()) {
-            submit(workItem);
+            // No need to reschedule if in progress
+            if (workItem.inProgress) continue;
+            worker.submit(workItem);
         }
-    }
-
-    private void submit(WorkItem item) {
-        if (item.inProgress) {
-            return;
-        }
-        worker.submit(item);
     }
 
     private void persist() {
@@ -198,6 +192,9 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         }
 
         public void run() {
+            // Never run more than once at a time
+            if (inProgress) return;
+
             inProgress = true;
             try {
                 lastState = disposable.dispose();
