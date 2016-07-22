@@ -23,8 +23,6 @@
  */
 package org.jenkinsci.plugins.resourcedisposer;
 
-import hudson.FilePath;
-import jenkins.model.Jenkins;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,8 +59,8 @@ public class PersistenceTest {
         assertThat(backlog, Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(1));
         AsyncResourceDisposer.WorkItem item = backlog.iterator().next();
         assertThat(item.getDisposable(), Matchers.instanceOf(FailingDisposable.class));
-        assertThat(item.getLastState(), Matchers.instanceOf(AsyncResourceDisposer.WorkItem.Failed.class));
-        AsyncResourceDisposer.WorkItem.Failed failure = (AsyncResourceDisposer.WorkItem.Failed) item.getLastState();
+        assertThat(item.getLastState(), Matchers.instanceOf(Disposable.State.Thrown.class));
+        Disposable.State.Thrown failure = (Disposable.State.Thrown) item.getLastState();
         assertThat(failure.getCause().getMessage(), equalTo(FailingDisposable.EXCEPTION.getMessage()));
     }
 }

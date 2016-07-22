@@ -77,7 +77,7 @@ public class AsyncResourceDisposerTest {
 
         assertEquals(1, remaining.size());
         AsyncResourceDisposer.WorkItem item = remaining.iterator().next();
-        assertEquals(error, ((AsyncResourceDisposer.WorkItem.Failed) item.getLastState()).getCause());
+        assertEquals(error, ((Disposable.State.Thrown) item.getLastState()).getCause());
 
         verify(disposable, atLeast(2)).dispose();
         assertTrue(disposer.isActivated());
@@ -87,7 +87,7 @@ public class AsyncResourceDisposerTest {
     public void postponedDisposal() throws Exception {
         Disposable disposable = mock(Disposable.class);
         when(disposable.dispose()).thenReturn(
-                Disposable.State.DISPOSE, Disposable.State.DISPOSE, Disposable.State.PURGED
+                Disposable.State.TO_DISPOSE, Disposable.State.TO_DISPOSE, Disposable.State.PURGED
         );
 
         disposer.dispose(disposable);
@@ -113,7 +113,7 @@ public class AsyncResourceDisposerTest {
 
         Disposable postponed = mock(Disposable.class);
         when(postponed.dispose()).thenReturn(
-                Disposable.State.DISPOSE, Disposable.State.DISPOSE, Disposable.State.PURGED
+                Disposable.State.TO_DISPOSE, Disposable.State.TO_DISPOSE, Disposable.State.PURGED
         );
 
         disposer.dispose(noProblem);

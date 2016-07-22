@@ -44,14 +44,14 @@ import java.io.Serializable;
  * guaranteed to never run in more than one thread at a time.
  *
  * @author ogondza
- * @see AsyncResourceDisposer#dispose(Disposable)
+ * @see AsyncResourceDisposer#dispose
  */
 public interface Disposable extends Serializable {
 
     /**
      * Dispose the resource.
      *
-     * @return State of the resource after the attempt.
+     * @return State of the resource after the attempt. {@link State#PURGED} in case the resource do not need to be tracked any longer.
      * @throws Exception Problem disposing the resource.
      */
     @Nonnull State dispose() throws Exception;
@@ -59,13 +59,13 @@ public interface Disposable extends Serializable {
     /**
      * Text description of the disposable.
      *
-     * Admins are supposed to understand what kind of resource and what exact
-     * resource is being disposed from this description.
+     * @return String providing enough of a hint for admin to know the resource
+     * kind and identity. Ex.: "Docker container my/tag"
      */
     @Nonnull String getDisplayName();
 
     abstract class State implements Serializable {
-        public static final @Nonnull State DISPOSE = new Dispose();
+        public static final @Nonnull State TO_DISPOSE = new ToDispose();
         public static final @Nonnull State PURGED = new Purged();
 
         private final String displayName;
@@ -78,15 +78,34 @@ public interface Disposable extends Serializable {
             return displayName;
         }
 
-        public static class Purged extends State {
-            protected Purged() {
+        public static final class Purged extends State {
+            private Purged() {
                 super("Purged successfully");
             }
         }
 
-        public static class Dispose extends State {
-            protected Dispose() {
+        public static final class ToDispose extends State {
+            private ToDispose() {
                 super("To dispose");
+            }
+        }
+
+        public static final class Thrown extends Disposable.State {
+            private final @Nonnull Throwable cause;
+
+            public Thrown(@Nonnull Throwable cause) {
+                super(cause.getMessage());
+                this.cause = cause;
+            }
+
+            @Nonnull public Throwable getCause() {
+                return cause;
+            }
+        }
+
+        public static final class Failed extends Disposable.State {
+            public Failed(@Nonnull String cause) {
+                super(cause);
             }
         }
     }

@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer.WorkItem.Failed
+package org.jenkinsci.plugins.resourcedisposer.Disposable.State.Thrown
 
 import hudson.Functions
 

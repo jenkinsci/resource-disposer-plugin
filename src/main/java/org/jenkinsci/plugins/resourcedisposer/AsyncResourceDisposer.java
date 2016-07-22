@@ -51,7 +51,7 @@ import javax.annotation.Nonnull;
  * Track resources to be disposed asynchronously.
  *
  * In order to have resource disposed safely and eventual failures tracked for
- * Jenkins admins to see, register wrapped resources uisng {@link #dispose(Disposable)}.
+ * Jenkins admins to see, register wrapped resources uisng {@link #dispose}.
  *
  * @author ogondza
  * @see Disposable
@@ -82,6 +82,22 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         load();
     }
 
+    /**
+     * Get list of resources do be disposed.
+     *
+     * @return Entries to be processed.
+     */
+    public @Nonnull Set<WorkItem> getBacklog() {
+        synchronized (backlog) {
+            return new HashSet<WorkItem>(backlog);
+        }
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "Asynchronous resource disposer";
+    }
+
     @Override
     public boolean isActivated() {
         for (WorkItem workItem: getBacklog()) {
@@ -95,13 +111,29 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     /**
      * Schedule resource to be disposed.
      *
-     * @param disposable Resource wrapper to be deleted.
+     * @param disposables Resource wrappers to be deleted.
      */
-    public void dispose(final @Nonnull Disposable disposable) {
-        WorkItem item = new WorkItem(this, disposable);
-        backlog.add(item);
+    public void dispose(final @Nonnull Disposable... disposables) {
+        for (Disposable disposable : disposables) {
+            WorkItem item = new WorkItem(this, disposable);
+            backlog.add(item);
+            worker.submit(item);
+        }
         persist();
-        worker.submit(item);
+    }
+
+    /**
+     * Schedule resource to be disposed.
+     *
+     * @param disposables Resource wrappers to be deleted.
+     */
+    public void dispose(final @Nonnull Iterable<Disposable> disposables) {
+        for (Disposable disposable : disposables) {
+            WorkItem item = new WorkItem(this, disposable);
+            backlog.add(item);
+            worker.submit(item);
+        }
+        persist();
     }
 
     /**
@@ -160,7 +192,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
         private final @Nonnull Disposable disposable;
         private final @Nonnull Date registered = new Date();
-        private volatile @Nonnull Disposable.State lastState = Disposable.State.DISPOSE;
+        private volatile @Nonnull Disposable.State lastState = Disposable.State.TO_DISPOSE;
         private volatile transient boolean inProgress;
 
         private WorkItem(AsyncResourceDisposer disposer, Disposable disposable) {
@@ -202,39 +234,12 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
                     disposer.backlog.remove(this);
                 }
             } catch (Throwable ex) {
-                lastState = new Failed(ex);
+                lastState = new Disposable.State.Thrown(ex);
             } finally {
                 inProgress = false;
                 disposer.persist();
             }
         }
-
-        public static final class Failed extends Disposable.State {
-            private final @Nonnull Throwable cause;
-
-            private Failed(@Nonnull Throwable cause) {
-                super(cause.getMessage());
-                this.cause = cause;
-            }
-
-            @Nonnull public Throwable getCause() {
-                return cause;
-            }
-        }
-    }
-
-    /**
-     * Get list of resources do be disposed.
-     */
-    public @Nonnull Set<WorkItem> getBacklog() {
-        synchronized (backlog) {
-            return new HashSet<WorkItem>(backlog);
-        }
-    }
-
-    @Override
-    public String getDisplayName() {
-        return "Asynchronous resource disposer";
     }
 
     /**
