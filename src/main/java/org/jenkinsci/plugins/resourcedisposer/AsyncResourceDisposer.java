@@ -139,14 +139,19 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     /**
      * Force rescheduling of all tracked tasks.
      *
-     * @deprecated Only exposed for testing
+     * @deprecated Only exposed for testing.
      */
     @Deprecated
     public void reschedule() {
         for (WorkItem workItem: getBacklog()) {
             // No need to reschedule if in progress
-            if (workItem.inProgress) continue;
-            worker.submit(workItem);
+            if (workItem.inProgress) {
+                LOGGER.info(workItem + " is in progress");
+                continue;
+            } else {
+                LOGGER.info("Rescheduling " + workItem);
+                worker.submit(workItem);
+            }
         }
     }
 
