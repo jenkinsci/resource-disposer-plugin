@@ -24,6 +24,8 @@
 package org.jenkinsci.plugins.resourcedisposer;
 
 import org.hamcrest.Matchers;
+import org.jenkinsci.plugins.resourcedisposer.Disposable.State.ToDispose;
+import org.jenkinsci.plugins.resourcedisposer.Disposable.State.Thrown;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
@@ -33,6 +35,8 @@ import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.jenkinsci.plugins.resourcedisposer.Disposable.*;
+import static org.junit.Assert.assertTrue;
 
 public class PersistenceTest {
     @Rule
@@ -44,23 +48,29 @@ public class PersistenceTest {
             @Override public void evaluate() throws Throwable {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
                 disposer.dispose(new FailingDisposable());
-                checkItem(disposer.getBacklog());
+                AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
+
+                assertThat(item.getLastState(), Matchers.instanceOf(Thrown.class));
+                Thrown failure = (Thrown) item.getLastState();
+                assertThat(failure.getCause().getMessage(), equalTo(FailingDisposable.EXCEPTION.getMessage()));
             }
         });
         j.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-                checkItem(disposer.getBacklog());
+                AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
+
+                State lastState = item.getLastState();
+                // It is ok if this is not deserialized 100% same
+                assertTrue("Failed or ready to be rechecked", (lastState instanceof ToDispose) || (lastState instanceof Thrown));
             }
         });
     }
 
-    private void checkItem(Set<AsyncResourceDisposer.WorkItem> backlog) {
+    private AsyncResourceDisposer.WorkItem checkItem(Set<AsyncResourceDisposer.WorkItem> backlog) {
         assertThat(backlog, Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(1));
         AsyncResourceDisposer.WorkItem item = backlog.iterator().next();
         assertThat(item.getDisposable(), Matchers.instanceOf(FailingDisposable.class));
-        assertThat(item.getLastState(), Matchers.instanceOf(Disposable.State.Thrown.class));
-        Disposable.State.Thrown failure = (Disposable.State.Thrown) item.getLastState();
-        assertThat(failure.getCause().getMessage(), equalTo(FailingDisposable.EXCEPTION.getMessage()));
+        return item;
     }
 }
