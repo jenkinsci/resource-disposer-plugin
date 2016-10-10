@@ -157,9 +157,6 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
     private void persist() {
         try {
-            for (WorkItem item : getBacklog()) {
-                System.out.println("Saving " + item.lastState);
-            }
             getConfigFile().write(this);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Unable to store AsyncResourceDisposer history", e);
