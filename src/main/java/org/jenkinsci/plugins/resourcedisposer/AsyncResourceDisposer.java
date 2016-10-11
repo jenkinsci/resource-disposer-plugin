@@ -51,7 +51,7 @@ import javax.annotation.Nonnull;
  * Track resources to be disposed asynchronously.
  *
  * In order to have resource disposed safely and eventual failures tracked for
- * Jenkins admins to see, register wrapped resources uisng {@link #dispose}.
+ * Jenkins admins to see, register wrapped resources using {@link #dispose}.
  *
  * @author ogondza
  * @see Disposable
