@@ -25,6 +25,7 @@ package org.jenkinsci.plugins.resourcedisposer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.emptyCollectionOf;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.*;
 import java.io.IOException;
 import java.util.Set;
 
+import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import org.junit.Before;
 import org.junit.Rule;
@@ -81,6 +83,14 @@ public class AsyncResourceDisposerTest {
 
         verify(disposable, atLeast(2)).dispose();
         assertTrue(disposer.isActivated());
+
+        int itemId = item.getId();
+        HtmlPage page = j.createWebClient().goTo(disposer.getUrl());
+        page = page.getFormByName("stop-tracking-" + itemId).getInputByName("submit").click();
+        assertThat(page.getWebResponse().getContentAsString(), containsString(disposer.getDisplayName())); // Redirected back
+
+        assertThat(disposer.getBacklog(), emptyCollectionOf(AsyncResourceDisposer.WorkItem.class));
+        assertFalse(disposer.isActivated());
     }
 
     @Test

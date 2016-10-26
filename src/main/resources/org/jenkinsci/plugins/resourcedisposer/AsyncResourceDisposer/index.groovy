@@ -22,9 +22,7 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer
-
-import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer.WorkItem
+package org.jenkinsci.plugins.resourcedisposer
 
 import java.text.DateFormat
 import java.text.SimpleDateFormat;
@@ -42,14 +40,21 @@ l.layout(permission: app.ADMINISTER) {
                 th(_("Resource"))
                 th(_("Tracked since"))
                 th(_("State"))
+                th("&nbsp;")
             }
             DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-            for (WorkItem item in my.backlog) {
+            for (AsyncResourceDisposer.WorkItem item in my.backlog) {
                 tr {
                     td(item.disposable.displayName)
                     td(df.format(item.registered))
                     td{
                         st.include(page: "cell", it: item.lastState)
+                    }
+                    td{
+                        form(action: "./stopTracking", method: "POST", name: "stop-tracking-" + item.id) {
+                            input(name: "id", type: "hidden", value: item.id)
+                            input(name: "submit", type: "submit", value: _("Stop tracking"))
+                        }
                     }
                 }
             }

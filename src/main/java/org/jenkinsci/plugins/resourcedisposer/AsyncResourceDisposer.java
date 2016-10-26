@@ -40,12 +40,17 @@ import hudson.XmlFile;
 import hudson.model.AdministrativeMonitor;
 import hudson.model.Computer;
 import hudson.model.PeriodicWork;
+import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.WebMethod;
 
 import javax.annotation.Nonnull;
+import javax.servlet.ServletResponse;
 
 /**
  * Track resources to be disposed asynchronously.
@@ -136,6 +141,17 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         persist();
     }
 
+    @Restricted(DoNotUse.class)
+    public HttpResponses.HttpResponseException doStopTracking(@QueryParameter int id) {
+        for (WorkItem workItem : getBacklog()) {
+            if (workItem.getId() == id) {
+                backlog.remove(workItem);
+                break;
+            }
+        }
+        return HttpResponses.forwardToPreviousPage();
+    }
+
     /**
      * Force rescheduling of all tracked tasks.
      *
@@ -219,6 +235,10 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
         public @Nonnull Disposable.State getLastState() {
             return lastState;
+        }
+
+        public int getId() {
+            return System.identityHashCode(this);
         }
 
         @Override
