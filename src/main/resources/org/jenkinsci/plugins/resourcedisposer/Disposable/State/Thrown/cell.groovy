@@ -26,9 +26,6 @@ package org.jenkinsci.plugins.resourcedisposer.Disposable.State.Thrown
 
 import hudson.Functions
 
-def f = namespace(lib.FormTagLib)
-def st = namespace("jelly:stapler")
-
 pre {
     text(Functions.printThrowable(my.cause))
 }
