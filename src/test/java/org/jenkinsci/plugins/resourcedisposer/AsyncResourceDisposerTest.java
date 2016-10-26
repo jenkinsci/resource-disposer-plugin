@@ -52,7 +52,7 @@ public class AsyncResourceDisposerTest {
     }
 
     @Test
-    public void disposeImmediately() throws Exception {
+    public void disposeImmediately() throws Throwable {
         Disposable disposable = mock(Disposable.class);
         when(disposable.dispose()).thenReturn(Disposable.State.PURGED);
 
@@ -64,7 +64,7 @@ public class AsyncResourceDisposerTest {
     }
 
     @Test
-    public void neverDispose() throws Exception {
+    public void neverDispose() throws Throwable {
         final IOException error = new IOException("to be thrown");
 
         Disposable disposable = mock(Disposable.class);
@@ -94,7 +94,7 @@ public class AsyncResourceDisposerTest {
     }
 
     @Test
-    public void postponedDisposal() throws Exception {
+    public void postponedDisposal() throws Throwable {
         Disposable disposable = mock(Disposable.class);
         when(disposable.dispose()).thenReturn(
                 Disposable.State.TO_DISPOSE, Disposable.State.TO_DISPOSE, Disposable.State.PURGED
@@ -112,7 +112,7 @@ public class AsyncResourceDisposerTest {
     }
 
     @Test
-    public void combined() throws Exception {
+    public void combined() throws Throwable {
 
         Disposable noProblem = mock(Disposable.class);
         when(noProblem.dispose()).thenReturn(Disposable.State.PURGED);

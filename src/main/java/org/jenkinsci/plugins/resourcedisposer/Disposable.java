@@ -52,9 +52,9 @@ public interface Disposable extends Serializable {
      * Dispose the resource.
      *
      * @return State of the resource after the attempt. {@link State#PURGED} in case the resource do not need to be tracked any longer.
-     * @throws Exception Problem disposing the resource.
+     * @throws Throwable Problem disposing the resource. The exception thrown will be reported as a reason the dispose attempt failed.
      */
-    @Nonnull State dispose() throws Exception;
+    @Nonnull State dispose() throws Throwable;
 
     /**
      * Text description of the disposable.
