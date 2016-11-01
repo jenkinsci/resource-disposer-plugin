@@ -160,12 +160,11 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     @Deprecated
     public void reschedule() {
         for (WorkItem workItem: getBacklog()) {
-            // No need to reschedule if in progress
             if (workItem.inProgress) {
-                LOGGER.info(workItem + " is in progress");
-                continue;
+                // No need to reschedule
+                LOGGER.fine(workItem + " is in progress");
             } else {
-                LOGGER.info("Rescheduling " + workItem);
+                LOGGER.finer("Rescheduling " + workItem);
                 worker.submit(workItem);
             }
         }
