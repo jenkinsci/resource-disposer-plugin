@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.resourcedisposer;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyCollectionOf;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -33,12 +34,13 @@ import static org.mockito.Mockito.*;
 import java.io.IOException;
 import java.util.Set;
 
-import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+
+import javax.annotation.Nonnull;
 
 public class AsyncResourceDisposerTest {
 
@@ -67,21 +69,17 @@ public class AsyncResourceDisposerTest {
     public void neverDispose() throws Throwable {
         final IOException error = new IOException("to be thrown");
 
-        Disposable disposable = mock(Disposable.class);
-        when(disposable.dispose()).thenThrow(error);
+        Disposable disposable = spy(new ThrowDisposable(error));
 
-        disposer.dispose(disposable);
-        Thread.sleep(100);
-        disposer.reschedule();
-        Thread.sleep(100);
+        @SuppressWarnings("deprecation")
+        AsyncResourceDisposer.WorkItem item = disposer.disposeAndWait(disposable).get();
 
         Set<AsyncResourceDisposer.WorkItem> remaining = disposer.getBacklog();
-
         assertEquals(1, remaining.size());
-        AsyncResourceDisposer.WorkItem item = remaining.iterator().next();
+        assertThat(remaining.iterator().next(), equalTo(item));
         assertEquals(error, ((Disposable.State.Thrown) item.getLastState()).getCause());
 
-        verify(disposable, atLeast(2)).dispose();
+        verify(disposable).dispose();
         assertTrue(disposer.isActivated());
 
         int itemId = item.getId();
@@ -91,6 +89,25 @@ public class AsyncResourceDisposerTest {
 
         assertThat(disposer.getBacklog(), emptyCollectionOf(AsyncResourceDisposer.WorkItem.class));
         assertFalse(disposer.isActivated());
+    }
+
+    private static class ThrowDisposable implements Disposable {
+
+        private Throwable ex;
+
+        public ThrowDisposable(Throwable ex) {
+            this.ex = ex;
+        }
+
+        @Override
+        public @Nonnull State dispose() throws Throwable {
+            throw ex;
+        }
+
+        @Override
+        public @Nonnull String getDisplayName() {
+            return "Throwing";
+        }
     }
 
     @Test

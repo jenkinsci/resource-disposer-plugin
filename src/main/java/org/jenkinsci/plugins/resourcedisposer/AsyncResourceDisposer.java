@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -46,11 +47,8 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.WebMethod;
 
 import javax.annotation.Nonnull;
-import javax.servlet.ServletResponse;
 
 /**
  * Track resources to be disposed asynchronously.
@@ -168,6 +166,20 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
                 worker.submit(workItem);
             }
         }
+    }
+
+    /**
+     * Dispose providing Future to wait for first dispose cycle to complete.
+     *
+     * @deprecated Only exposed for testing.
+     */
+    @Deprecated
+    public Future<WorkItem> disposeAndWait(Disposable disposable) {
+        WorkItem item = new WorkItem(this, disposable);
+        backlog.add(item);
+        Future<WorkItem> future = worker.submit(item, item);
+        persist();
+        return future;
     }
 
     private void persist() {
