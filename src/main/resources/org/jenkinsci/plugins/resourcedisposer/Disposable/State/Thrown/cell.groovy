@@ -26,6 +26,41 @@ package org.jenkinsci.plugins.resourcedisposer.Disposable.State.Thrown
 
 import hudson.Functions
 
-pre {
-    text(Functions.printThrowable(my.cause))
+def st = namespace("jelly:stapler")
+st.once {
+    style {
+        text(
+                """
+                    .stacktrace {
+                        position: relative;
+                    }
+                    .stacktrace .short {
+                        display: block;
+                        text-decoration: underline dotted;
+                    }
+                    .stacktrace .full {
+                        visibility: hidden;
+                        position: absolute;
+                        background: #ddd;
+
+                        top: -5px; left: -4px;
+                        border: solid 1px #bbb;
+                        padding: 4px 3px;
+                    }
+                    .stacktrace:hover .full {
+                        visibility: visible;
+                    }
+                """
+        )
+    }
+}
+
+def stacktrace = Functions.printThrowable(my.cause)
+pre(class: "stacktrace") {
+    div(class: "full") {
+        text(stacktrace)
+    }
+    div(class: "short") {
+        text(my.cause.toString())
+    }
 }

@@ -35,7 +35,7 @@ l.layout(permission: app.ADMINISTER) {
     st.include(page: "sidepanel", it: app)
     l.main_panel {
         h1(my.displayName)
-        table(class: "sortable bigtable") {
+        table(class: "sortable bigtable", style: "width: 100%") {
             tr {
                 th(_("Resource"))
                 th(_("Tracked since"))
@@ -46,10 +46,10 @@ l.layout(permission: app.ADMINISTER) {
             for (AsyncResourceDisposer.WorkItem item in my.backlog) {
                 tr {
                     td(item.disposable.displayName)
-                    td(df.format(item.registered))
                     td{
                         st.include(page: "cell", it: item.lastState)
                     }
+                    td(df.format(item.registered))
                     td{
                         form(action: "./stopTracking", method: "POST", name: "stop-tracking-" + item.id) {
                             input(name: "id", type: "hidden", value: item.id)
