@@ -25,7 +25,7 @@
 package org.jenkinsci.plugins.resourcedisposer
 
 import java.text.DateFormat
-import java.text.SimpleDateFormat;
+import java.text.SimpleDateFormat
 
 def l = namespace(lib.LayoutTagLib)
 def st = namespace("jelly:stapler")

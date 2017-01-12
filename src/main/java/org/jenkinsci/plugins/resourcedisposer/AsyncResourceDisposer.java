@@ -25,6 +25,7 @@ package org.jenkinsci.plugins.resourcedisposer;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Date;
@@ -48,6 +49,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 /**
@@ -219,13 +221,15 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
         private final @Nonnull AsyncResourceDisposer disposer;
 
-        private final @Nonnull Disposable disposable;
+        private /*final*/ @Nonnull Disposable disposable;
         private final @Nonnull Date registered = new Date();
         // There is no reason to serialized something more elaborate as after restart it will either succeed or fail again farly soon.
         private volatile @Nonnull Disposable.State lastState = Disposable.State.TO_DISPOSE;
         private volatile transient boolean inProgress;
 
-        private WorkItem(AsyncResourceDisposer disposer, Disposable disposable) {
+        private @CheckForNull String disposableInfo;
+
+        private WorkItem(@Nonnull AsyncResourceDisposer disposer, @Nonnull Disposable disposable) {
             this.disposer = disposer;
             this.disposable = disposable;
             readResolve();
@@ -233,6 +237,18 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
         private Object readResolve() {
             inProgress = false;
+            if (disposable == null) {
+                final String msg = "Unable to deserialize '" + disposableInfo + "'. The resource was probably leaked.";
+                LOGGER.warning(msg);
+                disposable = new FailedToDeserialize(msg);
+            }
+            disposableInfo = null;
+            return this;
+        }
+
+        // Save disposable details to report in case we fail to deserialize the disposable
+        private Object writeReplace() throws ObjectStreamException {
+            disposableInfo = disposable.getClass().getName() + ":" + disposable.getDisplayName();
             return this;
         }
 
@@ -272,6 +288,25 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
             } finally {
                 inProgress = false;
                 disposer.persist();
+            }
+        }
+
+        private static class FailedToDeserialize implements Disposable {
+            private static final long serialVersionUID = 5249985901013332487L;
+            private final String msg;
+
+            FailedToDeserialize(String msg) {
+                this.msg = msg;
+            }
+
+            @Override
+            public @Nonnull State dispose() throws Throwable {
+                return State.PURGED;
+            }
+
+            @Override
+            public @Nonnull String getDisplayName() {
+                return msg;
             }
         }
     }
