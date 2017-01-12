@@ -131,14 +131,14 @@ public class AsyncResourceDisposerTest {
     @Test
     public void combined() throws Throwable {
 
-        Disposable noProblem = mock(Disposable.class);
+        Disposable noProblem = mock(Disposable.class, withSettings().serializable());
         when(noProblem.dispose()).thenReturn(Disposable.State.PURGED);
 
         final IOException error = new IOException("to be thrown");
-        Disposable problem = mock(Disposable.class);
+        Disposable problem = mock(Disposable.class, withSettings().serializable());
         when(problem.dispose()).thenThrow(error);
 
-        Disposable postponed = mock(Disposable.class);
+        Disposable postponed = mock(Disposable.class, withSettings().serializable());
         when(postponed.dispose()).thenReturn(
                 Disposable.State.TO_DISPOSE, Disposable.State.TO_DISPOSE, Disposable.State.PURGED
         );

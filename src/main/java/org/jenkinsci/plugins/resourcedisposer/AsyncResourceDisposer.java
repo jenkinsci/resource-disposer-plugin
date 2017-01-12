@@ -37,6 +37,7 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.XmlFile;
 import hudson.model.AdministrativeMonitor;
@@ -236,7 +237,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         }
 
         // disposable can be null if it fails to deserialize
-        @SuppressWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
+        @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
         private Object readResolve() {
             inProgress = false;
             //noinspection ConstantConditions
