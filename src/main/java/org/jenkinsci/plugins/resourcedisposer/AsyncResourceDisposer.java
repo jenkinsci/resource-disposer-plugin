@@ -235,6 +235,8 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
             readResolve();
         }
 
+        // disposable can be null if it fails to deserialize
+        @SuppressWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
         private Object readResolve() {
             inProgress = false;
             //noinspection ConstantConditions
