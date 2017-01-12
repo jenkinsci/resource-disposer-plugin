@@ -237,6 +237,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
         private Object readResolve() {
             inProgress = false;
+            //noinspection ConstantConditions
             if (disposable == null) {
                 final String msg = "Unable to deserialize '" + disposableInfo + "'. The resource was probably leaked.";
                 LOGGER.warning(msg);
