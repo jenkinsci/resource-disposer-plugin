@@ -48,11 +48,13 @@
       <version>1.10.19</version>
       <scope>test</scope>
     </dependency>
+    <!-- https://issues.jenkins-ci.org/browse/JENKINS-41037
     <dependency>
       <groupId>org.jvnet.hudson</groupId>
       <artifactId>xstream</artifactId>
       <version>1.4.7-jenkins-2</version>
     </dependency>
+    -->
 
     <!-- enforcer complains about dependency provided by core -->
     <dependency>
