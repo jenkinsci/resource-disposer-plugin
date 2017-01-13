@@ -7,7 +7,7 @@
   </parent>
 
   <artifactId>resource-disposer</artifactId>
-  <version>0.4-SNAPSHOT</version>
+  <version>0.4</version>
   <packaging>hpi</packaging>
   <name>Resource Disposer Plugin</name>
   <description>Dispose resources asynchronously. Utility plugin for resources that require more retries or take a long time to delete.</description>
@@ -32,7 +32,7 @@
     <connection>scm:git:git://github.com/jenkinsci/resource-disposer-plugin.git</connection>
     <developerConnection>scm:git:git@github.com:jenkinsci/resource-disposer-plugin.git</developerConnection>
     <url>https://github.com/jenkinsci/resource-disposer-plugin</url>
-    <tag>HEAD</tag>
+    <tag>resource-disposer-0.4</tag>
   </scm>
 
   <dependencies>
@@ -47,6 +47,11 @@
       <artifactId>mockito-all</artifactId>
       <version>1.10.19</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jvnet.hudson</groupId>
+      <artifactId>xstream</artifactId>
+      <version>1.4.7-jenkins-2</version>
     </dependency>
 
     <!-- enforcer complains about dependency provided by core -->
