@@ -325,7 +325,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     public static class Scheduler extends PeriodicWork {
 
         @Override
-        public void doRun() throws Exception {
+        protected void doRun() throws Exception {
             //noinspection deprecation
             AsyncResourceDisposer.get().reschedule();
         }
