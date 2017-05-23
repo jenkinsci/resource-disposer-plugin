@@ -67,10 +67,6 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
     private static final ExecutorService worker = Computer.threadPoolForRemoting;
     private static final Logger LOGGER = Logger.getLogger(AsyncResourceDisposer.class.getName());
-    /*new ThreadPoolExecutor (
-            0, 1, 5L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(),
-            new ExceptionCatchingThreadFactory(new NamingThreadFactory(new DaemonThreadFactory(), "AsyncResourceDisposer"))
-    );*/
 
     /**
      * Persist all entries to dispose in order to survive restart.

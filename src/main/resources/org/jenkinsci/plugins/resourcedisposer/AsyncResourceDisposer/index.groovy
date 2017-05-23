@@ -38,8 +38,8 @@ l.layout(permission: app.ADMINISTER) {
         table(class: "sortable bigtable", style: "width: 100%") {
             tr {
                 th(_("Resource"))
-                th(_("Tracked since"))
                 th(_("State"))
+                th(_("Tracked since"))
                 th("&nbsp;")
             }
             DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm");
