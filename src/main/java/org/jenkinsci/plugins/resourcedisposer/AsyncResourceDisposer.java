@@ -102,9 +102,11 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
     @Override
     public boolean isActivated() {
+        // Activated if it has items older than 4 hours
+        long threshold = System.currentTimeMillis() - 4 * 60 * 60 * 1000;
         for (WorkItem workItem: getBacklog()) {
             if (!workItem.getLastState().equals(Disposable.State.PURGED)) {
-                return true;
+                if (workItem.registered.getTime() < threshold) return true;
             }
         }
         return false;

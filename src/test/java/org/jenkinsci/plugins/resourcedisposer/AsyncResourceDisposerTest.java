@@ -27,18 +27,22 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyCollectionOf;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.Set;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.mockito.internal.util.reflection.Whitebox;
 
 import javax.annotation.Nonnull;
 
@@ -80,7 +84,7 @@ public class AsyncResourceDisposerTest {
         assertEquals(error, ((Disposable.State.Thrown) item.getLastState()).getCause());
 
         verify(disposable).dispose();
-        assertTrue(disposer.isActivated());
+        assertThat(disposer.getBacklog(), not(IsEmptyCollection.<AsyncResourceDisposer.WorkItem>empty()));
 
         int itemId = item.getId();
         HtmlPage page = j.createWebClient().goTo(disposer.getUrl());
@@ -88,7 +92,6 @@ public class AsyncResourceDisposerTest {
         assertThat(page.getWebResponse().getContentAsString(), containsString(disposer.getDisplayName())); // Redirected back
 
         assertThat(disposer.getBacklog(), emptyCollectionOf(AsyncResourceDisposer.WorkItem.class));
-        assertFalse(disposer.isActivated());
     }
 
     private static class ThrowDisposable implements Disposable {
@@ -169,7 +172,15 @@ public class AsyncResourceDisposerTest {
         Thread.sleep(1000);
 
         JenkinsRule.WebClient wc = j.createWebClient();
+
+        assertFalse(disposer.isActivated());
         HtmlPage manage = wc.goTo("manage");
+        assertThat(manage.asText(), not(containsString("There are resources Jenkins was not able to dispose automatically")));
+
+        Whitebox.setInternalState(disposer.getBacklog().iterator().next(), "registered", new Date(0)); // Make it decades old
+
+        assertTrue(disposer.isActivated());
+        manage = wc.goTo("manage");
         assertThat(manage.asText(), containsString("There are resources Jenkins was not able to dispose automatically"));
         HtmlPage report = wc.goTo(disposer.getUrl());
         assertThat(report.asText(), containsString("Failing disposable"));
