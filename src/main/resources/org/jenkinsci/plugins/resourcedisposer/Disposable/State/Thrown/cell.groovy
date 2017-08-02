@@ -46,6 +46,7 @@ st.once {
                         top: -5px; left: -4px;
                         border: solid 1px #bbb;
                         padding: 4px 3px;
+                        z-index: 100;
                     }
                     .stacktrace:hover .full {
                         visibility: visible;
