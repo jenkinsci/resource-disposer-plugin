@@ -60,6 +60,12 @@ import javax.annotation.Nonnull;
  * In order to have resource disposed safely and eventual failures tracked for
  * Jenkins admins to see, register wrapped resources using {@link #dispose}.
  *
+ * Implementation details: The disposer can be quite loaded during massive resource eviction. Therefore, the persisted
+ * state is guaranteed to be preserved only for purposes of resource tracking but not necessarily with their individual
+ * state. IOW, tracking adding and removing disposables is critical while tracking their state is not performed as it is
+ * cheap to recalculate. Resource set is persisted when disposables are registered/unregistered and periodically to
+ * capture successful resource removals. The last state is not part of the persisted data at all.
+ *
  * @author ogondza
  * @see Disposable
  */
@@ -103,6 +109,8 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
     @Override
     public boolean isActivated() {
+        if (backlog.isEmpty()) return false; // Optimization
+
         // Activated if it has items older than 4 hours
         long threshold = System.currentTimeMillis() - 4 * 60 * 60 * 1000;
         for (WorkItem workItem: getBacklog()) {
@@ -146,6 +154,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         for (WorkItem workItem : getBacklog()) {
             if (workItem.getId() == id) {
                 backlog.remove(workItem);
+                persist();
                 break;
             }
         }
@@ -159,6 +168,9 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
      */
     @Deprecated
     public void reschedule() {
+        if (backlog.isEmpty()) return; // Noop if there is no load
+
+        persist(); // Trigger periodic updates to persist successful removals on best effort basis.
         for (WorkItem workItem: getBacklog()) {
             if (workItem.inProgress) {
                 // No need to reschedule
@@ -224,8 +236,8 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         private /*final*/ @Nonnull Disposable disposable;
         private final @Nonnull Date registered = new Date();
 
-        // There is no reason to serialized something more elaborate as after restart it will either succeed or fail again farly soon.
-        private volatile @Nonnull Disposable.State lastState = Disposable.State.TO_DISPOSE;
+        // There is no reason to serialize something here as after restart it will either succeed or fail again farly soon.
+        private volatile transient @Nonnull Disposable.State lastState = Disposable.State.TO_DISPOSE;
         private volatile transient boolean inProgress;
 
         // Hold the details while persisted so eventual problems with deserializing can be diagnosed
@@ -234,7 +246,6 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         private WorkItem(@Nonnull AsyncResourceDisposer disposer, @Nonnull Disposable disposable) {
             this.disposer = disposer;
             this.disposable = disposable;
-            this.disposableInfo = disposable.getClass().getName() + ":" + disposable.getDisplayName();
             readResolve();
         }
 
@@ -268,12 +279,17 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
                 lastState = disposable.dispose();
                 if (lastState == Disposable.State.PURGED) {
                     disposer.backlog.remove(this);
+
+                    // The state is captured periodically as long as there are some work items. This is needed to detect
+                    // the situation when backlog becomes empty.
+                    if (disposer.backlog.isEmpty()) {
+                        disposer.persist();
+                    }
                 }
             } catch (Throwable ex) {
                 lastState = new Disposable.State.Thrown(ex);
             } finally {
                 inProgress = false;
-                disposer.persist();
             }
         }
 
@@ -296,6 +312,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
         private Object readResolve() {
             inProgress = false;
+            lastState = Disposable.State.TO_DISPOSE;
             //noinspection ConstantConditions
             if (disposable == null) {
                 final String msg = "Unable to deserialize '" + disposableInfo + "'. The resource was probably leaked.";
