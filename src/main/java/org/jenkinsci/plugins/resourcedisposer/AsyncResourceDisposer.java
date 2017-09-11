@@ -234,6 +234,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         private WorkItem(@Nonnull AsyncResourceDisposer disposer, @Nonnull Disposable disposable) {
             this.disposer = disposer;
             this.disposable = disposable;
+            this.disposableInfo = disposable.getClass().getName() + ":" + disposable.getDisplayName();
             readResolve();
         }
 
@@ -301,12 +302,6 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
                 LOGGER.warning(msg);
                 disposable = new FailedToDeserialize(msg);
             }
-            disposableInfo = null;
-            return this;
-        }
-
-        // Save disposable details to report in case we fail to deserialize the disposable
-        private Object writeReplace() throws ObjectStreamException {
             disposableInfo = disposable.getClass().getName() + ":" + disposable.getDisplayName();
             return this;
         }
