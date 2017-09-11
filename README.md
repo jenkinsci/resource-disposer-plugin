@@ -10,7 +10,8 @@ be disposed (`Disposable#dispose()`). The method is expected to return either
 confirmation the resource is gone, reason it has failed to delete it or, for mere
 convenience, throw an exception that will be captured as such reason. The implementation
 is expected to identify the resource (and its kind/source) as well as the problem
-that occurred for instance admin to understand.
+that occurred for instance admin to understand. `Disposable` implementations equal
+to each other will be collapsed presuming they represent the same resource.  
 
 ## Manual intervention
 

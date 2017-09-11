@@ -27,6 +27,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyCollectionOf;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.*;
@@ -37,6 +38,7 @@ import java.util.Date;
 import java.util.Set;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.Before;
 import org.junit.Rule;
@@ -185,5 +187,42 @@ public class AsyncResourceDisposerTest {
         HtmlPage report = wc.goTo(disposer.getUrl());
         assertThat(report.asText(), containsString("Failing disposable"));
         assertThat(report.asText(), containsString("IOException: Unable to dispose"));
+    }
+
+    @Test
+    public void collapseSameDisposables() {
+        disposer = AsyncResourceDisposer.get();
+
+        // Identical insatnces collapses
+        FailingDisposable fd = new FailingDisposable();
+        disposer.dispose(fd);
+        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(1));
+        disposer.dispose(fd);
+        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(1));
+
+        // Equal instances collapses
+        disposer.dispose(new SameDisposable());
+        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(2));
+        disposer.dispose(new SameDisposable());
+        disposer.dispose(new SameDisposable());
+        disposer.dispose(new SameDisposable());
+        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(2));
+
+        // Not-equal implementations does not collapse
+        FailingDisposable otherFailingDisposable = new FailingDisposable();
+        disposer.dispose(otherFailingDisposable);
+        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(3));
+        disposer.dispose(otherFailingDisposable);
+        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(3));
+    }
+
+    private static final class SameDisposable extends FailingDisposable {
+        @Override public int hashCode() {
+            return 73;
+        }
+
+        @Override public boolean equals(Object obj) {
+            return obj instanceof SameDisposable;
+        }
     }
 }

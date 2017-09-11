@@ -37,6 +37,7 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.XmlFile;
@@ -170,11 +171,11 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     }
 
     /**
-     * Dispose providing Future to wait for first dispose cycle to complete.
+     * Only exposed for testing.
      *
-     * @deprecated Only exposed for testing.
+     * Dispose providing Future to wait for first dispose cycle to complete.
      */
-    @Deprecated
+    @VisibleForTesting
     public Future<WorkItem> disposeAndWait(Disposable disposable) {
         WorkItem item = new WorkItem(this, disposable);
         backlog.add(item);
@@ -222,36 +223,18 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
         private /*final*/ @Nonnull Disposable disposable;
         private final @Nonnull Date registered = new Date();
+
         // There is no reason to serialized something more elaborate as after restart it will either succeed or fail again farly soon.
         private volatile @Nonnull Disposable.State lastState = Disposable.State.TO_DISPOSE;
         private volatile transient boolean inProgress;
 
+        // Hold the details while persisted so eventual problems with deserializing can be diagnosed
         private @CheckForNull String disposableInfo;
 
         private WorkItem(@Nonnull AsyncResourceDisposer disposer, @Nonnull Disposable disposable) {
             this.disposer = disposer;
             this.disposable = disposable;
             readResolve();
-        }
-
-        // disposable can be null if it fails to deserialize
-        @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
-        private Object readResolve() {
-            inProgress = false;
-            //noinspection ConstantConditions
-            if (disposable == null) {
-                final String msg = "Unable to deserialize '" + disposableInfo + "'. The resource was probably leaked.";
-                LOGGER.warning(msg);
-                disposable = new FailedToDeserialize(msg);
-            }
-            disposableInfo = null;
-            return this;
-        }
-
-        // Save disposable details to report in case we fail to deserialize the disposable
-        private Object writeReplace() throws ObjectStreamException {
-            disposableInfo = disposable.getClass().getName() + ":" + disposable.getDisplayName();
-            return this;
         }
 
         public @Nonnull Disposable getDisposable() {
@@ -291,6 +274,41 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
                 inProgress = false;
                 disposer.persist();
             }
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            WorkItem workItem = (WorkItem) o;
+
+            return disposable.equals(workItem.disposable);
+        }
+
+        @Override
+        public int hashCode() {
+            return disposable.hashCode();
+        }
+
+        // disposable can be null if it fails to deserialize
+        @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
+        private Object readResolve() {
+            inProgress = false;
+            //noinspection ConstantConditions
+            if (disposable == null) {
+                final String msg = "Unable to deserialize '" + disposableInfo + "'. The resource was probably leaked.";
+                LOGGER.warning(msg);
+                disposable = new FailedToDeserialize(msg);
+            }
+            disposableInfo = null;
+            return this;
+        }
+
+        // Save disposable details to report in case we fail to deserialize the disposable
+        private Object writeReplace() throws ObjectStreamException {
+            disposableInfo = disposable.getClass().getName() + ":" + disposable.getDisplayName();
+            return this;
         }
 
         private static class FailedToDeserialize implements Disposable {
