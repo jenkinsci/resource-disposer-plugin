@@ -27,7 +27,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyCollectionOf;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.*;
@@ -215,7 +214,6 @@ public class AsyncResourceDisposerTest {
         disposer.dispose(otherFailingDisposable);
         assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(3));
     }
-
     private static final class SameDisposable extends FailingDisposable {
         @Override public int hashCode() {
             return 73;
