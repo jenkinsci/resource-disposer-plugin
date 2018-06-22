@@ -33,10 +33,12 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Set;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import hudson.util.OneShotEvent;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.Before;
@@ -221,6 +223,66 @@ public class AsyncResourceDisposerTest {
 
         @Override public boolean equals(Object obj) {
             return obj instanceof SameDisposable;
+        }
+    }
+
+    @Test
+    public void concurrentDisposablesAreThrottled() {
+        disposer = AsyncResourceDisposer.get();
+        final int MPS = AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
+
+        // Almost fill the pool
+        for (int i = 0; i < MPS - 1; i++) {
+            disposer.dispose(new BlockingDisposable());
+        }
+
+        assertThat(getActive(disposer).size(), equalTo(MPS - 1));
+        assertThat(disposer.getBacklog().size(), equalTo(MPS - 1));
+        disposer.dispose(new BlockingDisposable());
+        assertThat(getActive(disposer).size(), equalTo(MPS));
+        assertThat(disposer.getBacklog().size(), equalTo(MPS));
+        disposer.dispose(new BlockingDisposable());
+        assertThat(getActive(disposer).size(), equalTo(MPS));
+        assertThat(disposer.getBacklog().size(), equalTo(MPS + 1));
+
+        getActive(disposer).get(0).end.signal();
+        disposer.reschedule();
+        assertThat(getActive(disposer).size(), equalTo(MPS));
+        assertThat(disposer.getBacklog().size(), equalTo(MPS));
+
+        getActive(disposer).get(0).end.signal();
+        disposer.reschedule();
+        assertThat(getActive(disposer).size(), equalTo(MPS - 1));
+        assertThat(disposer.getBacklog().size(), equalTo(MPS - 1));
+    }
+
+    private ArrayList<BlockingDisposable> getActive(AsyncResourceDisposer disposer) {
+        ArrayList<BlockingDisposable> bds = new ArrayList<BlockingDisposable>();
+        for (AsyncResourceDisposer.WorkItem wa: disposer.getBacklog()) {
+            BlockingDisposable disposable = (BlockingDisposable) wa.getDisposable();
+            if (disposable.isActive()) {
+                bds.add(disposable);
+            }
+        }
+        return bds;
+    }
+
+    private static final class BlockingDisposable implements Disposable {
+        private final OneShotEvent start = new OneShotEvent();
+        private final OneShotEvent end = new OneShotEvent();
+
+        @Nonnull @Override public State dispose() throws Throwable {
+            start.signal();
+            end.block();
+            return State.PURGED;
+        }
+
+        @Nonnull @Override public String getDisplayName() {
+            return "Blocked " + hashCode();
+        }
+
+        private boolean isActive() {
+            return start.isSignaled() && !end.isSignaled();
         }
     }
 }

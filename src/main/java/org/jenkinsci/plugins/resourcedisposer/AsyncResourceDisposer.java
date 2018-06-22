@@ -25,7 +25,6 @@ package org.jenkinsci.plugins.resourcedisposer;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Date;
@@ -34,6 +33,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -42,10 +44,13 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.XmlFile;
 import hudson.model.AdministrativeMonitor;
-import hudson.model.Computer;
 import hudson.model.PeriodicWork;
+import hudson.util.DaemonThreadFactory;
+import hudson.util.ExceptionCatchingThreadFactory;
 import hudson.util.HttpResponses;
+import hudson.util.NamingThreadFactory;
 import jenkins.model.Jenkins;
+import jenkins.util.ContextResettingExecutorService;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -71,9 +76,23 @@ import javax.annotation.Nonnull;
  */
 @Extension
 public class AsyncResourceDisposer extends AdministrativeMonitor implements Serializable {
-
-    private static final ExecutorService worker = Computer.threadPoolForRemoting;
     private static final Logger LOGGER = Logger.getLogger(AsyncResourceDisposer.class.getName());
+
+    // Limit the number of threads to use at a time
+    /*package*/ static final int MAXIMUM_POOL_SIZE = 10;
+    private static final ExceptionCatchingThreadFactory THREAD_FACTORY = new ExceptionCatchingThreadFactory(
+            new NamingThreadFactory(new DaemonThreadFactory(), "AsyncResourceDisposer.worker")
+    );
+    private static final ExecutorService worker = new ContextResettingExecutorService(
+            new ThreadPoolExecutor(
+                    0, MAXIMUM_POOL_SIZE,
+                    60L, TimeUnit.SECONDS,
+                    new SynchronousQueue<Runnable>(),
+                    THREAD_FACTORY,
+                    // Ignore all WorkItems that does not fit into the pool to be rescheduled later
+                    new ThreadPoolExecutor.DiscardPolicy()
+            )
+    );
 
     /**
      * Persist all entries to dispose in order to survive restart.
@@ -127,12 +146,18 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
      * @param disposables Resource wrappers to be deleted.
      */
     public void dispose(final @Nonnull Disposable... disposables) {
+        boolean modified = false;
         for (Disposable disposable : disposables) {
             WorkItem item = new WorkItem(this, disposable);
-            backlog.add(item);
-            worker.submit(item);
+            boolean added = backlog.add(item);
+            if (added) {
+                modified = true;
+                worker.submit(item);
+            }
         }
-        persist();
+        if (modified) {
+            persist();
+        }
     }
 
     /**
@@ -140,21 +165,29 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
      *
      * @param disposables Resource wrappers to be deleted.
      */
-    public void dispose(final @Nonnull Iterable<Disposable> disposables) {
+    public void dispose(final @Nonnull Iterable<? extends Disposable> disposables) {
+        boolean modified = false;
         for (Disposable disposable : disposables) {
             WorkItem item = new WorkItem(this, disposable);
-            backlog.add(item);
-            worker.submit(item);
+            boolean added = backlog.add(item);
+            if (added) {
+                modified = true;
+                worker.submit(item);
+            }
         }
-        persist();
+        if (modified) {
+            persist();
+        }
     }
 
     @Restricted(DoNotUse.class)
     public HttpResponses.HttpResponseException doStopTracking(@QueryParameter int id) {
         for (WorkItem workItem : getBacklog()) {
             if (workItem.getId() == id) {
-                backlog.remove(workItem);
-                persist();
+                boolean removed = backlog.remove(workItem);
+                if (removed) { // Might be disposed or removed concurrently
+                    persist();
+                }
                 break;
             }
         }
