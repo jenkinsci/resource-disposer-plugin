@@ -76,6 +76,8 @@ import javax.annotation.Nonnull;
  */
 @Extension
 public class AsyncResourceDisposer extends AdministrativeMonitor implements Serializable {
+    private static final long serialVersionUID = -1707941450072465346L;
+
     private static final Logger LOGGER = Logger.getLogger(AsyncResourceDisposer.class.getName());
 
     // Limit the number of threads to use at a time
@@ -365,7 +367,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
             }
 
             @Override
-            public @Nonnull State dispose() throws Throwable {
+            public @Nonnull State dispose() {
                 return State.PURGED;
             }
 
@@ -386,7 +388,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     public static class Scheduler extends PeriodicWork {
 
         @Override
-        protected void doRun() throws Exception {
+        protected void doRun() {
             //noinspection deprecation
             AsyncResourceDisposer.get().reschedule();
         }
