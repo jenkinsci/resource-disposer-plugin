@@ -40,9 +40,7 @@ import java.util.Set;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
-import static org.jenkinsci.plugins.resourcedisposer.Disposable.*;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -51,9 +49,9 @@ public class PersistenceTest {
     public RestartableJenkinsRule j = new RestartableJenkinsRule();
 
     @Test
-    public void persistEntries() throws Exception {
+    public void persistEntries() {
         j.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override public void evaluate() {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
                 disposer.disposeAndWait(new FailingDisposable());
                 AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
@@ -64,7 +62,7 @@ public class PersistenceTest {
             }
         });
         j.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override public void evaluate() {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
                 AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
 
@@ -76,9 +74,9 @@ public class PersistenceTest {
     }
 
     @Test
-    public void recoverWhenDisposableCanNotBeDeserialized() throws Exception {
+    public void recoverWhenDisposableCanNotBeDeserialized() {
         j.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override public void evaluate() {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
                 disposer.dispose(new DisappearingDisposable());
                 assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(1));
@@ -101,9 +99,10 @@ public class PersistenceTest {
         });
     }
     private static final class DisappearingDisposable implements Disposable {
+        private static final long serialVersionUID = 3007902823296336222L;
 
         @Override
-        public @Nonnull State dispose() throws Throwable {
+        public @Nonnull State dispose() {
             return State.TO_DISPOSE;
         }
 
