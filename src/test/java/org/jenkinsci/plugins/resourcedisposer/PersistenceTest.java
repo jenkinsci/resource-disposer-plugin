@@ -55,7 +55,7 @@ public class PersistenceTest {
         j.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-                disposer.dispose(new FailingDisposable());
+                disposer.disposeAndWait(new FailingDisposable());
                 AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
 
                 assertThat(item.getLastState(), Matchers.instanceOf(Thrown.class));

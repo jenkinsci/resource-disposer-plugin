@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.resourcedisposer;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
@@ -85,7 +86,8 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     private static final ExceptionCatchingThreadFactory THREAD_FACTORY = new ExceptionCatchingThreadFactory(
             new NamingThreadFactory(new DaemonThreadFactory(), "AsyncResourceDisposer.worker")
     );
-    private static final ExecutorService worker = new ContextResettingExecutorService(
+    // Can be static but instance field on a singleton does the job as well. Plus, it re-initializes between tests avoiding interference.
+    private transient final ExecutorService worker = new ContextResettingExecutorService(
             new ThreadPoolExecutor(
                     0, MAXIMUM_POOL_SIZE,
                     60L, TimeUnit.SECONDS,
@@ -194,41 +196,6 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
             }
         }
         return HttpResponses.forwardToPreviousPage();
-    }
-
-    /**
-     * Force rescheduling of all tracked tasks.
-     *
-     * @deprecated Only exposed for testing.
-     */
-    @Deprecated
-    public void reschedule() {
-        if (backlog.isEmpty()) return; // Noop if there is no load
-
-        persist(); // Trigger periodic updates to persist successful removals on best effort basis.
-        for (WorkItem workItem: getBacklog()) {
-            if (workItem.inProgress) {
-                // No need to reschedule
-                LOGGER.fine(workItem + " is in progress");
-            } else {
-                LOGGER.finer("Rescheduling " + workItem);
-                worker.submit(workItem);
-            }
-        }
-    }
-
-    /**
-     * Only exposed for testing.
-     *
-     * Dispose providing Future to wait for first dispose cycle to complete.
-     */
-    @VisibleForTesting
-    public Future<WorkItem> disposeAndWait(Disposable disposable) {
-        WorkItem item = new WorkItem(this, disposable);
-        backlog.add(item);
-        Future<WorkItem> future = worker.submit(item, item);
-        persist();
-        return future;
     }
 
     private void persist() {
@@ -402,5 +369,75 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         public String toString() {
             return "AsyncResourceDisposer.Maintainer";
         }
+    }
+
+    /**
+     * Force rescheduling of all tracked tasks.
+     */
+    @VisibleForTesting
+    public void reschedule() {
+        if (backlog.isEmpty()) return; // Noop if there is no load
+
+        persist(); // Trigger periodic updates to persist successful removals on best effort basis.
+        for (WorkItem workItem: getBacklog()) {
+            if (workItem.inProgress) {
+                // No need to reschedule
+                LOGGER.fine(workItem + " is in progress");
+            } else {
+                LOGGER.finer("Rescheduling " + workItem);
+                worker.submit(workItem);
+            }
+        }
+    }
+
+    /**
+     * Force rescheduling of all tracked tasks.
+     */
+    @VisibleForTesting
+    /*package*/ void rescheduleAndWait() throws InterruptedException {
+        if (backlog.isEmpty()) return;
+
+        ArrayList<Future<?>> futures = new ArrayList<Future<?>>();
+        for (WorkItem workItem: getBacklog()) {
+            if (workItem.inProgress) {
+                // No need to reschedule
+                LOGGER.fine(workItem + " is in progress");
+            } else {
+                LOGGER.finer("Rescheduling " + workItem);
+                Future<?> f = worker.submit(workItem);
+                futures.add(f);
+            }
+        }
+
+        while (!futures.isEmpty()) {
+            for (Future<?> future : futures) {
+                if (future.isDone() || future.isCancelled()) {
+                    futures.remove(future);
+                    break;
+                }
+            }
+            System.out.println("Waiting for " + futures);
+            Thread.sleep(100);
+        }
+    }
+
+    /**
+     * Only exposed for testing.
+     *
+     * Dispose providing Future to wait for first dispose cycle to complete.
+     */
+    @VisibleForTesting
+    public Future<WorkItem> disposeAndWait(Disposable disposable) {
+        WorkItem item = new WorkItem(this, disposable);
+        backlog.add(item);
+        Future<WorkItem> future = worker.submit(item, item);
+        persist();
+        return future;
+    }
+
+    @VisibleForTesting
+    public void reset() {
+        backlog.clear();
+
     }
 }
