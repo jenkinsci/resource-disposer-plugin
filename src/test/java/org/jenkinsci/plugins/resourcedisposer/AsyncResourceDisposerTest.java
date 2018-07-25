@@ -33,23 +33,31 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
+import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import com.gargoylesoftware.htmlunit.HttpMethod;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import hudson.model.AdministrativeMonitor;
 import hudson.util.OneShotEvent;
+import jenkins.model.Jenkins;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.mockito.internal.util.reflection.Whitebox;
 
 import javax.annotation.Nonnull;
+import javax.servlet.http.HttpServletResponse;
 
 public class AsyncResourceDisposerTest {
 
@@ -227,6 +235,52 @@ public class AsyncResourceDisposerTest {
 
         @Override public boolean equals(Object obj) {
             return obj instanceof SameDisposable;
+        }
+    }
+
+    @Test @Issue("SECURITY-997")
+    public void security997() throws Exception {
+        j.jenkins.setCrumbIssuer(null);
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
+        mas.grant(Jenkins.READ).everywhere().to("user");
+        mas.grant(Jenkins.ADMINISTER).everywhere().to("admin");
+        j.jenkins.setAuthorizationStrategy(mas);
+
+        String disposerUrl = j.getURL() + disposer.getUrl();
+        URL actionUrl = new URL(disposerUrl + "/stopTracking/?id=42");
+        JenkinsRule.WebClient uwc = j.createWebClient().login("user", "user");
+
+        try {
+            uwc.getPage(disposerUrl);
+            fail();
+        } catch (FailingHttpStatusCodeException ex) {
+            assertEquals(HttpServletResponse.SC_FORBIDDEN, ex.getResponse().getStatusCode());
+        }
+
+        try {
+            uwc.getPage(new WebRequest(actionUrl, HttpMethod.POST));
+            fail();
+        } catch (FailingHttpStatusCodeException ex) {
+            assertEquals(HttpServletResponse.SC_FORBIDDEN, ex.getResponse().getStatusCode());
+        }
+
+        try {
+            uwc.getPage(actionUrl);
+            fail();
+        } catch (FailingHttpStatusCodeException ex) {
+            assertEquals(HttpServletResponse.SC_METHOD_NOT_ALLOWED, ex.getResponse().getStatusCode());
+        }
+
+        JenkinsRule.WebClient awc = j.createWebClient().login("admin", "admin");
+        awc.getPage(disposerUrl);
+        awc.getPage(new WebRequest(actionUrl, HttpMethod.POST));
+
+        try {
+            uwc.getPage(actionUrl);
+            fail();
+        } catch (FailingHttpStatusCodeException ex) {
+            assertEquals(HttpServletResponse.SC_METHOD_NOT_ALLOWED, ex.getResponse().getStatusCode());
         }
     }
 

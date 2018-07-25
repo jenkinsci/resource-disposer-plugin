@@ -55,7 +55,10 @@ import jenkins.util.ContextResettingExecutorService;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -185,7 +188,9 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     }
 
     @Restricted(DoNotUse.class)
-    public HttpResponses.HttpResponseException doStopTracking(@QueryParameter int id) {
+    @RequirePOST
+    public HttpResponse doStopTracking(@QueryParameter int id, StaplerResponse rsp) {
+        Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
         for (WorkItem workItem : getBacklog()) {
             if (workItem.getId() == id) {
                 boolean removed = backlog.remove(workItem);
@@ -195,7 +200,8 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
                 break;
             }
         }
-        return HttpResponses.forwardToPreviousPage();
+
+        return HttpResponses.redirectViaContextPath(getUrl());
     }
 
     private void persist() {
