@@ -24,6 +24,7 @@
 package org.jenkinsci.plugins.resourcedisposer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyCollectionOf;
 import static org.hamcrest.Matchers.equalTo;
@@ -269,7 +270,9 @@ public class AsyncResourceDisposerTest {
             uwc.getPage(actionUrl);
             fail();
         } catch (FailingHttpStatusCodeException ex) {
-            assertEquals(HttpServletResponse.SC_METHOD_NOT_ALLOWED, ex.getResponse().getStatusCode());
+            // Never jenkins/stapler version reversed the order of checks apparently
+            int statusCode = ex.getResponse().getStatusCode();
+            assertThat(statusCode, anyOf(equalTo(HttpServletResponse.SC_METHOD_NOT_ALLOWED), equalTo(HttpServletResponse.SC_FORBIDDEN)));
         }
 
         JenkinsRule.WebClient awc = j.createWebClient().login("admin", "admin");
@@ -277,7 +280,7 @@ public class AsyncResourceDisposerTest {
         awc.getPage(new WebRequest(actionUrl, HttpMethod.POST));
 
         try {
-            uwc.getPage(actionUrl);
+            awc.getPage(actionUrl);
             fail();
         } catch (FailingHttpStatusCodeException ex) {
             assertEquals(HttpServletResponse.SC_METHOD_NOT_ALLOWED, ex.getResponse().getStatusCode());
