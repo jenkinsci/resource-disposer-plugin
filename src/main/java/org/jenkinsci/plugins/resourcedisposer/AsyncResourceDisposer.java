@@ -90,16 +90,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
             new NamingThreadFactory(new DaemonThreadFactory(), "AsyncResourceDisposer.worker")
     );
     // Can be static but instance field on a singleton does the job as well. Plus, it re-initializes between tests avoiding interference.
-    private transient final ExecutorService worker = new ContextResettingExecutorService(
-            new ThreadPoolExecutor(
-                    0, MAXIMUM_POOL_SIZE,
-                    60L, TimeUnit.SECONDS,
-                    new SynchronousQueue<Runnable>(),
-                    THREAD_FACTORY,
-                    // Ignore all WorkItems that does not fit into the pool to be rescheduled later
-                    new ThreadPoolExecutor.DiscardPolicy()
-            )
-    );
+    private transient ExecutorService worker;
 
     /**
      * Persist all entries to dispose in order to survive restart.
@@ -115,6 +106,23 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     public AsyncResourceDisposer() {
         super("AsyncResourceDisposer");
         load();
+        readResolve();
+    }
+
+    private Object readResolve() {
+        if (worker == null) {
+            worker = new ContextResettingExecutorService(
+                    new ThreadPoolExecutor(
+                            0, MAXIMUM_POOL_SIZE,
+                            60L, TimeUnit.SECONDS,
+                            new SynchronousQueue<>(),
+                            THREAD_FACTORY,
+                            // Ignore all WorkItems that does not fit into the pool to be rescheduled later
+                            new ThreadPoolExecutor.DiscardPolicy()
+                    )
+            );
+        }
+        return this;
     }
 
     /**
