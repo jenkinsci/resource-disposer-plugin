@@ -79,7 +79,9 @@ import javax.annotation.Nonnull;
  * @see Disposable
  */
 @Extension
-public class AsyncResourceDisposer extends AdministrativeMonitor {
+public class AsyncResourceDisposer extends AdministrativeMonitor implements Serializable {
+    private static final long serialVersionUID = -1707941450072465346L;
+
     private static final Logger LOGGER = Logger.getLogger(AsyncResourceDisposer.class.getName());
 
     // Limit the number of threads to use at a time
