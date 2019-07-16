@@ -24,9 +24,8 @@
 package org.jenkinsci.plugins.resourcedisposer;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import org.hamcrest.Matchers;
-import org.jenkinsci.plugins.resourcedisposer.Disposable.State.ToDispose;
 import org.jenkinsci.plugins.resourcedisposer.Disposable.State.Thrown;
+import org.jenkinsci.plugins.resourcedisposer.Disposable.State.ToDispose;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
@@ -40,6 +39,8 @@ import java.util.Set;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -56,7 +57,7 @@ public class PersistenceTest {
                 disposer.disposeAndWait(new FailingDisposable());
                 AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
 
-                assertThat(item.getLastState(), Matchers.instanceOf(Thrown.class));
+                assertThat(item.getLastState(), instanceOf(Thrown.class));
                 Thrown failure = (Thrown) item.getLastState();
                 assertThat(failure.getCause().getMessage(), equalTo(FailingDisposable.EXCEPTION.getMessage()));
             }
@@ -79,7 +80,7 @@ public class PersistenceTest {
             @Override public void evaluate() {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
                 disposer.dispose(new DisappearingDisposable());
-                assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(1));
+                assertThat(disposer.getBacklog(), iterableWithSize(1));
             }
         });
         j.addStep(new Statement() {
@@ -118,9 +119,9 @@ public class PersistenceTest {
     }
 
     private AsyncResourceDisposer.WorkItem checkItem(Set<AsyncResourceDisposer.WorkItem> backlog) {
-        assertThat(backlog, Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(1));
+        assertThat(backlog, iterableWithSize(1));
         AsyncResourceDisposer.WorkItem item = backlog.iterator().next();
-        assertThat(item.getDisposable(), Matchers.instanceOf(FailingDisposable.class));
+        assertThat(item.getDisposable(), instanceOf(FailingDisposable.class));
         return item;
     }
 }

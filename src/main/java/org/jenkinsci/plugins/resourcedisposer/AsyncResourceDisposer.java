@@ -95,7 +95,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     /**
      * Persist all entries to dispose in order to survive restart.
      */
-    private final @Nonnull Set<WorkItem> backlog = Collections.newSetFromMap(new ConcurrentHashMap<WorkItem, Boolean>());
+    private final @Nonnull Set<WorkItem> backlog = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public static @Nonnull AsyncResourceDisposer get() {
         Jenkins instance = Jenkins.getInstance();
@@ -132,7 +132,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
      */
     public @Nonnull Set<WorkItem> getBacklog() {
         synchronized (backlog) {
-            return new HashSet<WorkItem>(backlog);
+            return new HashSet<>(backlog);
         }
     }
 
@@ -411,7 +411,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     /*package*/ void rescheduleAndWait() throws InterruptedException {
         if (backlog.isEmpty()) return;
 
-        ArrayList<Future<?>> futures = new ArrayList<Future<?>>();
+        ArrayList<Future<?>> futures = new ArrayList<>();
         for (WorkItem workItem: getBacklog()) {
             if (workItem.inProgress) {
                 // No need to reschedule
@@ -424,13 +424,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         }
 
         while (!futures.isEmpty()) {
-            for (Future<?> future : futures) {
-                if (future.isDone() || future.isCancelled()) {
-                    futures.remove(future);
-                    break;
-                }
-            }
-            System.out.println("Waiting for " + futures);
+            futures.removeIf(future -> future.isDone() || future.isCancelled());
             Thread.sleep(100);
         }
     }
@@ -452,6 +446,5 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     @VisibleForTesting
     public void reset() {
         backlog.clear();
-
     }
 }

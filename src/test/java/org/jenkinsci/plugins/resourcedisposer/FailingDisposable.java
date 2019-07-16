@@ -23,6 +23,7 @@
  */
 package org.jenkinsci.plugins.resourcedisposer;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /**
@@ -34,12 +35,12 @@ class FailingDisposable implements Disposable {
     public static final String NAME = "Failing disposable";
     public static final IOException EXCEPTION = new IOException("Unable to dispose");
 
-    @Override
+    @Nonnull @Override
     public State dispose() throws Exception {
         throw EXCEPTION;
     }
 
-    @Override
+    @Nonnull @Override
     public String getDisplayName() {
         return NAME;
     }

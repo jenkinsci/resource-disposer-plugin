@@ -23,23 +23,6 @@
  */
 package org.jenkinsci.plugins.resourcedisposer;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.emptyCollectionOf;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.collection.IsEmptyCollection.empty;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
-import java.io.IOException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
-
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
@@ -47,8 +30,6 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import hudson.model.AdministrativeMonitor;
 import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
-import org.hamcrest.Matchers;
-import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,6 +40,31 @@ import org.mockito.internal.util.reflection.Whitebox;
 
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Set;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.emptyCollectionOf;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.iterableWithSize;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.collection.IsEmptyCollection.empty;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 public class AsyncResourceDisposerTest {
 
@@ -103,7 +109,7 @@ public class AsyncResourceDisposerTest {
         assertEquals(error, ((Disposable.State.Thrown) item.getLastState()).getCause());
 
         verify(disposable).dispose();
-        assertThat(disposer.getBacklog(), not(IsEmptyCollection.<AsyncResourceDisposer.WorkItem>empty()));
+        assertThat(disposer.getBacklog(), not(empty()));
 
         int itemId = item.getId();
         HtmlPage page = j.createWebClient().goTo(disposer.getUrl());
@@ -208,24 +214,24 @@ public class AsyncResourceDisposerTest {
         // Identical insatnces collapses
         FailingDisposable fd = new FailingDisposable();
         disposer.dispose(fd);
-        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(1));
+        assertThat(disposer.getBacklog(), iterableWithSize(1));
         disposer.dispose(fd);
-        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(1));
+        assertThat(disposer.getBacklog(), iterableWithSize(1));
 
         // Equal instances collapses
         disposer.dispose(new SameDisposable());
-        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(2));
+        assertThat(disposer.getBacklog(), iterableWithSize(2));
         disposer.dispose(new SameDisposable());
         disposer.dispose(new SameDisposable());
         disposer.dispose(new SameDisposable());
-        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(2));
+        assertThat(disposer.getBacklog(), iterableWithSize(2));
 
         // Not-equal implementations does not collapse
         FailingDisposable otherFailingDisposable = new FailingDisposable();
         disposer.dispose(otherFailingDisposable);
-        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(3));
+        assertThat(disposer.getBacklog(), iterableWithSize(3));
         disposer.dispose(otherFailingDisposable);
-        assertThat(disposer.getBacklog(), Matchers.<AsyncResourceDisposer.WorkItem>iterableWithSize(3));
+        assertThat(disposer.getBacklog(), iterableWithSize(3));
     }
     private static final class SameDisposable extends FailingDisposable {
         private static final long serialVersionUID = 6769179986158394005L;
@@ -320,7 +326,7 @@ public class AsyncResourceDisposerTest {
     }
 
     private ArrayList<BlockingDisposable> getActive(AsyncResourceDisposer disposer) {
-        ArrayList<BlockingDisposable> bds = new ArrayList<BlockingDisposable>();
+        ArrayList<BlockingDisposable> bds = new ArrayList<>();
         for (AsyncResourceDisposer.WorkItem wa: disposer.getBacklog()) {
             BlockingDisposable disposable = (BlockingDisposable) wa.getDisposable();
             if (disposable.isActive()) {

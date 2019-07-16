@@ -65,6 +65,8 @@ public interface Disposable extends Serializable {
     @Nonnull String getDisplayName();
 
     abstract class State implements Serializable {
+        private static final long serialVersionUID = -2908370512742097295L;
+
         public static final @Nonnull State TO_DISPOSE = new ToDispose();
         public static final @Nonnull State PURGED = new Purged();
 
@@ -79,18 +81,23 @@ public interface Disposable extends Serializable {
         }
 
         public static final class Purged extends State {
+            private static final long serialVersionUID = -3295110479777639361L;
+
             private Purged() {
                 super("Purged successfully");
             }
         }
 
         public static final class ToDispose extends State {
+            private static final long serialVersionUID = -374257846640988541L;
+
             private ToDispose() {
                 super("To dispose");
             }
         }
 
         public static final class Thrown extends Disposable.State {
+            private static final long serialVersionUID = -605474825355714673L;
             private final @Nonnull Throwable cause;
 
             public Thrown(@Nonnull Throwable cause) {
@@ -104,6 +111,8 @@ public interface Disposable extends Serializable {
         }
 
         public static final class Failed extends Disposable.State {
+            private static final long serialVersionUID = 2065789176411056177L;
+
             public Failed(@Nonnull String cause) {
                 super(cause);
             }
