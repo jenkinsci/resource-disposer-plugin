@@ -33,10 +33,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -51,7 +49,6 @@ import hudson.util.ExceptionCatchingThreadFactory;
 import hudson.util.HttpResponses;
 import hudson.util.NamingThreadFactory;
 import jenkins.model.Jenkins;
-import jenkins.util.ContextResettingExecutorService;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -111,16 +108,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
     private Object readResolve() {
         if (worker == null) {
-            worker = new ContextResettingExecutorService(
-                    new ThreadPoolExecutor(
-                            0, MAXIMUM_POOL_SIZE,
-                            60L, TimeUnit.SECONDS,
-                            new SynchronousQueue<>(),
-                            THREAD_FACTORY,
-                            // Ignore all WorkItems that does not fit into the pool to be rescheduled later
-                            new ThreadPoolExecutor.DiscardPolicy()
-                    )
-            );
+            worker = Executors.newFixedThreadPool(MAXIMUM_POOL_SIZE, THREAD_FACTORY);
         }
         return this;
     }
