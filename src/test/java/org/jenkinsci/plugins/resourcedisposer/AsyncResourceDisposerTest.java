@@ -49,17 +49,22 @@ import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyCollectionOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
+import static org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
+import static org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer.get;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -79,7 +84,7 @@ public class AsyncResourceDisposerTest {
         administrativeMonitors.clear();
         AsyncResourceDisposer nard = new AsyncResourceDisposer();
         administrativeMonitors.add(0, nard);
-        disposer = AsyncResourceDisposer.get();
+        disposer = get();
     }
 
     @Test
@@ -186,7 +191,7 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void showProblems() throws Exception {
-        disposer = AsyncResourceDisposer.get();
+        disposer = get();
         disposer.dispose(new FailingDisposable());
 
         Thread.sleep(1000);
@@ -209,7 +214,7 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void collapseSameDisposables() {
-        disposer = AsyncResourceDisposer.get();
+        disposer = get();
 
         // Identical insatnces collapses
         FailingDisposable fd = new FailingDisposable();
@@ -295,8 +300,8 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void concurrentDisposablesAreThrottled() throws InterruptedException {
-        disposer = AsyncResourceDisposer.get();
-        final int MPS = AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
+        disposer = get();
+        final int MPS = MAXIMUM_POOL_SIZE;
 
         // Almost fill the pool
         for (int i = 0; i < MPS - 1; i++) {
@@ -353,6 +358,61 @@ public class AsyncResourceDisposerTest {
 
         private boolean isActive() {
             return start.isSignaled() && !end.isSignaled();
+        }
+    }
+
+    @Test
+    public void preventLivelockWithManyStalledInstances() throws Throwable {
+        disposer = get();
+        final int MPS = MAXIMUM_POOL_SIZE;
+
+        // Fill with stalled
+        for (int i = 0; i < MPS; i++) {
+            disposer.dispose(new OccupyingDisposable());
+        }
+
+        Disposable disp = mock(Disposable.class);
+        doReturn(Disposable.State.PURGED).when(disp).dispose();
+
+        for (int i = 0; i < 100; i++) {
+            disposer.dispose(new SuccessfulDisposable());
+        }
+
+        // All slots occupied
+        disposer.reschedule();
+        Thread.sleep(1000);
+        OccupyingDisposable.signal = true;
+        Thread.sleep(1000);
+        assertThat(disposer.getBacklog(), iterableWithSize(MPS));
+    }
+
+    private static final class OccupyingDisposable implements Disposable {
+        private static final long serialVersionUID = 4648005477636912909L;
+
+        public static volatile boolean signal = false;
+
+        @Nonnull @Override public State dispose() throws Throwable {
+            while(!signal) {
+                Thread.sleep(10);
+            }
+            return State.TO_DISPOSE;
+        }
+
+        @Nonnull @Override public String getDisplayName() {
+            return "Occupado";
+        }
+    }
+
+    private static final class SuccessfulDisposable implements Disposable {
+        private static final long serialVersionUID = 4648005477636912909L;
+
+        @Nonnull @Override public State dispose() {
+            System.out.println("SD" + System.identityHashCode(this));
+            return State.PURGED;
+        }
+
+        @Nonnull @Override public String getDisplayName() {
+            return "Yes, Sir!";
         }
     }
 }
