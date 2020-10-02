@@ -41,7 +41,7 @@ st.once {
                     .stacktrace .full {
                         visibility: hidden;
                         position: absolute;
-                        background: #ddd;
+                        background: var(--light-bg-color, #ddd);
 
                         top: -5px; left: -4px;
                         border: solid 1px #bbb;
