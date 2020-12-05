@@ -43,9 +43,12 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
@@ -62,14 +65,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
 
 public class AsyncResourceDisposerTest {
 
@@ -89,12 +84,11 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void disposeImmediately() throws Throwable {
-        Disposable disposable = mock(Disposable.class);
-        when(disposable.dispose()).thenReturn(Disposable.State.PURGED);
+        StatefulDisposable disposable = new StatefulDisposable(Disposable.State.PURGED);
 
         disposer.disposeAndWait(disposable).get();
 
-        verify(disposable, times(1)).dispose();
+        assertEquals(1, disposable.getInvocationCount());
         assertThat(disposer.getBacklog(), empty());
         assertFalse(disposer.isActivated());
     }
@@ -103,7 +97,7 @@ public class AsyncResourceDisposerTest {
     public void neverDispose() throws Throwable {
         final IOException error = new IOException("to be thrown");
 
-        Disposable disposable = spy(new ThrowDisposable(error));
+        Disposable disposable = new ThrowDisposable(error);
 
         @SuppressWarnings("deprecation")
         AsyncResourceDisposer.WorkItem item = disposer.disposeAndWait(disposable).get();
@@ -113,7 +107,6 @@ public class AsyncResourceDisposerTest {
         assertThat(remaining.iterator().next(), equalTo(item));
         assertEquals(error, ((Disposable.State.Thrown) item.getLastState()).getCause());
 
-        verify(disposable).dispose();
         assertThat(disposer.getBacklog(), not(empty()));
 
         int itemId = item.getId();
@@ -124,10 +117,10 @@ public class AsyncResourceDisposerTest {
         assertThat(disposer.getBacklog(), emptyCollectionOf(AsyncResourceDisposer.WorkItem.class));
     }
 
-    private static class ThrowDisposable implements Disposable {
+    private static final class ThrowDisposable implements Disposable {
         private static final long serialVersionUID = -6079270961651246596L;
 
-        private Throwable ex;
+        private final Throwable ex;
 
         ThrowDisposable(Throwable ex) {
             this.ex = ex;
@@ -146,33 +139,34 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void postponedDisposal() throws Throwable {
-        Disposable disposable = mock(Disposable.class);
-        when(disposable.dispose()).thenReturn(
-                Disposable.State.TO_DISPOSE, Disposable.State.TO_DISPOSE, Disposable.State.PURGED
-        );
+        StatefulDisposable disposable =
+                new StatefulDisposable(
+                        Disposable.State.TO_DISPOSE,
+                        Disposable.State.TO_DISPOSE,
+                        Disposable.State.PURGED);
 
         disposer.disposeAndWait(disposable).get();
         disposer.rescheduleAndWait();
         disposer.rescheduleAndWait();
 
         assertThat(disposer.getBacklog(), empty());
-        verify(disposable, times(3)).dispose();
+        assertEquals(3, disposable.getInvocationCount());
     }
 
     @Test
     public void combined() throws Throwable {
 
-        Disposable noProblem = mock(Disposable.class, withSettings().serializable());
-        when(noProblem.dispose()).thenReturn(Disposable.State.PURGED);
+        StatefulDisposable noProblem =
+                new StatefulDisposable(Disposable.State.PURGED, Disposable.State.PURGED);
 
         final IOException error = new IOException("to be thrown");
-        Disposable problem = mock(Disposable.class, withSettings().serializable());
-        when(problem.dispose()).thenThrow(error);
+        Disposable problem = new ThrowDisposable(error);
 
-        Disposable postponed = mock(Disposable.class, withSettings().serializable());
-        when(postponed.dispose()).thenReturn(
-                Disposable.State.TO_DISPOSE, Disposable.State.TO_DISPOSE, Disposable.State.PURGED
-        );
+        StatefulDisposable postponed =
+                new StatefulDisposable(
+                        Disposable.State.TO_DISPOSE,
+                        Disposable.State.TO_DISPOSE,
+                        Disposable.State.PURGED);
 
         disposer.disposeAndWait(noProblem).get();
         disposer.disposeAndWait(problem).get();
@@ -182,9 +176,9 @@ public class AsyncResourceDisposerTest {
         disposer.rescheduleAndWait();
         disposer.rescheduleAndWait();
 
-        verify(noProblem, times(2)).dispose();
+        assertEquals(2, noProblem.getInvocationCount());
         //verify(problem, atLeast(3)).dispose();
-        verify(postponed, times(3)).dispose();
+        assertEquals(3, postponed.getInvocationCount());
         assertEquals(1, disposer.getBacklog().size());
         assertEquals(problem, disposer.getBacklog().iterator().next().getDisposable());
     }
@@ -371,9 +365,6 @@ public class AsyncResourceDisposerTest {
             disposer.dispose(new OccupyingDisposable());
         }
 
-        Disposable disp = mock(Disposable.class);
-        doReturn(Disposable.State.PURGED).when(disp).dispose();
-
         for (int i = 0; i < 100; i++) {
             disposer.dispose(new SuccessfulDisposable());
         }
@@ -413,6 +404,35 @@ public class AsyncResourceDisposerTest {
 
         @Nonnull @Override public String getDisplayName() {
             return "Yes, Sir!";
+        }
+    }
+
+    private static final class StatefulDisposable implements Disposable {
+
+        private static final long serialVersionUID = 3830077773214369355L;
+
+        private final List<Disposable.State> states;
+        private final AtomicInteger invocationCount;
+
+        StatefulDisposable(Disposable.State... states) {
+            this.states = Collections.unmodifiableList(Arrays.asList(states));
+            this.invocationCount = new AtomicInteger();
+        }
+
+        public int getInvocationCount() {
+            return invocationCount.get();
+        }
+
+        @Nonnull
+        @Override
+        public State dispose() {
+            return states.get(invocationCount.getAndIncrement());
+        }
+
+        @Nonnull
+        @Override
+        public String getDisplayName() {
+            return "Stateful Disposable";
         }
     }
 }
