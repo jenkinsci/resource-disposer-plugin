@@ -52,9 +52,9 @@ public class PersistenceTest {
     @Test
     public void persistEntries() {
         j.addStep(new Statement() {
-            @Override public void evaluate() {
+            @Override public void evaluate() throws Exception {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-                disposer.disposeAndWait(new FailingDisposable());
+                disposer.disposeAndWait(new FailingDisposable()).get();
                 AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
 
                 assertThat(item.getLastState(), instanceOf(Thrown.class));
