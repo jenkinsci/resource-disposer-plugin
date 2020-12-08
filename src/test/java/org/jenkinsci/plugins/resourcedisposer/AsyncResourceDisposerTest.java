@@ -308,12 +308,16 @@ public class AsyncResourceDisposerTest {
             disposer.dispose(new BlockingDisposable());
         }
 
+        Thread.sleep(1000);
+
         assertThat(getActive(disposer).size(), equalTo(MPS - 1));
         assertThat(disposer.getBacklog().size(), equalTo(MPS - 1));
         disposer.dispose(new BlockingDisposable());
+        Thread.sleep(500);
         assertThat(getActive(disposer).size(), equalTo(MPS));
         assertThat(disposer.getBacklog().size(), equalTo(MPS));
         disposer.dispose(new BlockingDisposable());
+        Thread.sleep(500);
         assertThat(getActive(disposer).size(), equalTo(MPS));
         assertThat(disposer.getBacklog().size(), equalTo(MPS + 1));
 
