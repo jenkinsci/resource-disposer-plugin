@@ -84,11 +84,10 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void disposeImmediately() throws Throwable {
-        StatefulDisposable disposable = new StatefulDisposable(Disposable.State.PURGED);
+        Disposable disposable = new SuccessfulDisposable();
 
         disposer.disposeAndWait(disposable).get();
 
-        assertEquals(1, disposable.getInvocationCount());
         assertThat(disposer.getBacklog(), empty());
         assertFalse(disposer.isActivated());
     }
@@ -156,8 +155,7 @@ public class AsyncResourceDisposerTest {
     @Test
     public void combined() throws Throwable {
 
-        StatefulDisposable noProblem =
-                new StatefulDisposable(Disposable.State.PURGED, Disposable.State.PURGED);
+        Disposable noProblem = new SuccessfulDisposable();
 
         final IOException error = new IOException("to be thrown");
         Disposable problem = new ThrowDisposable(error);
@@ -176,7 +174,6 @@ public class AsyncResourceDisposerTest {
         disposer.rescheduleAndWait();
         disposer.rescheduleAndWait();
 
-        assertEquals(2, noProblem.getInvocationCount());
         //verify(problem, atLeast(3)).dispose();
         assertEquals(3, postponed.getInvocationCount());
         assertEquals(1, disposer.getBacklog().size());
