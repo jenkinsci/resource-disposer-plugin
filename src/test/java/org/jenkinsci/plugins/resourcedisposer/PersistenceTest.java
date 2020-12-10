@@ -41,6 +41,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class PersistenceTest {
@@ -80,7 +81,7 @@ public class PersistenceTest {
                 // Current implementation will remove it so the backlog will be empty - either way NPE should not be thrown
                 for (AsyncResourceDisposer.WorkItem item : disposer.getBacklog()) {
                     assertNotEquals(null, item.getDisposable());
-                    item.toString();
+                    assertNotNull(item.toString());
                 }
 
                 JenkinsRule.WebClient wc = r.createWebClient();
