@@ -41,6 +41,7 @@ import java.util.logging.Logger;
 import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
+import hudson.ExtensionList;
 import hudson.XmlFile;
 import hudson.model.AdministrativeMonitor;
 import hudson.model.PeriodicWork;
@@ -95,9 +96,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     private final @Nonnull Set<WorkItem> backlog = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public static @Nonnull AsyncResourceDisposer get() {
-        Jenkins instance = Jenkins.getInstance();
-        if (instance == null) throw new IllegalStateException();
-        return (AsyncResourceDisposer) instance.getAdministrativeMonitor("AsyncResourceDisposer");
+        return ExtensionList.lookupSingleton(AsyncResourceDisposer.class);
     }
 
     public AsyncResourceDisposer() {

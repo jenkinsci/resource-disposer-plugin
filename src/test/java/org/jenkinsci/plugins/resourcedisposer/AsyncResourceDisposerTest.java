@@ -36,7 +36,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
-import org.mockito.internal.util.reflection.Whitebox;
+import org.powermock.reflect.Whitebox;
 
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
@@ -74,11 +74,6 @@ public class AsyncResourceDisposerTest {
 
     @Before
     public void setUp() {
-        // Replace existing disposer with new one to prevent Disposable leak between test runs
-        List<AdministrativeMonitor> administrativeMonitors = j.jenkins.administrativeMonitors;
-        administrativeMonitors.clear();
-        AsyncResourceDisposer nard = new AsyncResourceDisposer();
-        administrativeMonitors.add(0, nard);
         disposer = get();
     }
 
