@@ -23,17 +23,6 @@
  */
 package org.jenkinsci.plugins.resourcedisposer;
 
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import org.jenkinsci.plugins.resourcedisposer.Disposable.State.Thrown;
-import org.jenkinsci.plugins.resourcedisposer.Disposable.State.ToDispose;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.JenkinsSessionRule;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-import java.util.Set;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -43,6 +32,19 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import org.jenkinsci.plugins.resourcedisposer.Disposable.State.Thrown;
+import org.jenkinsci.plugins.resourcedisposer.Disposable.State.ToDispose;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.JenkinsSessionRule;
+
+import java.util.Set;
 
 public class PersistenceTest {
     @Rule
