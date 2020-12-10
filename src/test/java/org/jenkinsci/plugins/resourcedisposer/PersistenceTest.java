@@ -32,7 +32,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.JenkinsSessionRule;
 
 import javax.annotation.Nonnull;
-import java.io.ObjectStreamException;
 import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -103,7 +102,7 @@ public class PersistenceTest {
             return "Will disappear after restart";
         }
 
-        private Object readResolve() throws ObjectStreamException {
+        private Object readResolve() {
             // Simulate error while deserializing like when the plugin gets uninstalled
             return null;
         }
