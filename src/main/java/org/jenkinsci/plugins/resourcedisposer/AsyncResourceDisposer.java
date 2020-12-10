@@ -357,7 +357,6 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
         @Override
         protected void doRun() {
-            //noinspection deprecation
             AsyncResourceDisposer.get().reschedule();
         }
 

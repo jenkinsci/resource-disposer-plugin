@@ -93,7 +93,6 @@ public class AsyncResourceDisposerTest {
 
         Disposable disposable = new ThrowDisposable(error);
 
-        @SuppressWarnings("deprecation")
         AsyncResourceDisposer.WorkItem item = disposer.disposeAndWait(disposable).get();
 
         Set<AsyncResourceDisposer.WorkItem> remaining = disposer.getBacklog();
