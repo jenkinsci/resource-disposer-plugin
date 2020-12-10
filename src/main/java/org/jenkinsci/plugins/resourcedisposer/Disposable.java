@@ -23,7 +23,8 @@
  */
 package org.jenkinsci.plugins.resourcedisposer;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import java.io.Serializable;
 
 /**
@@ -54,7 +55,7 @@ public interface Disposable extends Serializable {
      * @return State of the resource after the attempt. {@link State#PURGED} in case the resource do not need to be tracked any longer.
      * @throws Throwable Problem disposing the resource. The exception thrown will be reported as a reason the dispose attempt failed.
      */
-    @Nonnull State dispose() throws Throwable;
+    @NonNull State dispose() throws Throwable;
 
     /**
      * Text description of the disposable.
@@ -62,13 +63,13 @@ public interface Disposable extends Serializable {
      * @return String providing enough of a hint for admin to know the resource
      * kind and identity. Ex.: "Docker container my/tag"
      */
-    @Nonnull String getDisplayName();
+    @NonNull String getDisplayName();
 
     abstract class State implements Serializable {
         private static final long serialVersionUID = -2908370512742097295L;
 
-        public static final @Nonnull State TO_DISPOSE = new ToDispose();
-        public static final @Nonnull State PURGED = new Purged();
+        public static final @NonNull State TO_DISPOSE = new ToDispose();
+        public static final @NonNull State PURGED = new Purged();
 
         private final String displayName;
 
@@ -76,7 +77,7 @@ public interface Disposable extends Serializable {
             this.displayName = displayName;
         }
 
-        public @Nonnull String getDisplayName() {
+        public @NonNull String getDisplayName() {
             return displayName;
         }
 
@@ -98,14 +99,14 @@ public interface Disposable extends Serializable {
 
         public static final class Thrown extends Disposable.State {
             private static final long serialVersionUID = -605474825355714673L;
-            private final @Nonnull Throwable cause;
+            private final @NonNull Throwable cause;
 
-            public Thrown(@Nonnull Throwable cause) {
+            public Thrown(@NonNull Throwable cause) {
                 super(cause.getMessage());
                 this.cause = cause;
             }
 
-            @Nonnull public Throwable getCause() {
+            @NonNull public Throwable getCause() {
                 return cause;
             }
         }
@@ -113,7 +114,7 @@ public interface Disposable extends Serializable {
         public static final class Failed extends Disposable.State {
             private static final long serialVersionUID = 2065789176411056177L;
 
-            public Failed(@Nonnull String cause) {
+            public Failed(@NonNull String cause) {
                 super(cause);
             }
         }

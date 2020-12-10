@@ -23,14 +23,30 @@
  */
 package org.jenkinsci.plugins.resourcedisposer;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.emptyCollectionOf;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.iterableWithSize;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.collection.IsEmptyCollection.empty;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import hudson.model.AdministrativeMonitor;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import hudson.util.OneShotEvent;
+
 import jenkins.model.Jenkins;
-import org.junit.Before;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -38,8 +54,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.powermock.reflect.Whitebox;
 
-import javax.annotation.Nonnull;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -50,35 +64,16 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.emptyCollectionOf;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.iterableWithSize;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.collection.IsEmptyCollection.empty;
-import static org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
-import static org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer.get;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import javax.servlet.http.HttpServletResponse;
 
 public class AsyncResourceDisposerTest {
 
     @Rule public final JenkinsRule j = new JenkinsRule();
 
-    private AsyncResourceDisposer disposer;
-
-    @Before
-    public void setUp() {
-        disposer = get();
-    }
-
     @Test
     public void disposeImmediately() throws Throwable {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
         Disposable disposable = new SuccessfulDisposable();
 
         disposer.disposeAndWait(disposable).get();
@@ -89,11 +84,12 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void neverDispose() throws Throwable {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
         final IOException error = new IOException("to be thrown");
 
         Disposable disposable = new ThrowDisposable(error);
 
-        @SuppressWarnings("deprecation")
         AsyncResourceDisposer.WorkItem item = disposer.disposeAndWait(disposable).get();
 
         Set<AsyncResourceDisposer.WorkItem> remaining = disposer.getBacklog();
@@ -121,18 +117,20 @@ public class AsyncResourceDisposerTest {
         }
 
         @Override
-        public @Nonnull State dispose() throws Throwable {
+        public @NonNull State dispose() throws Throwable {
             throw ex;
         }
 
         @Override
-        public @Nonnull String getDisplayName() {
+        public @NonNull String getDisplayName() {
             return "Throwing";
         }
     }
 
     @Test
     public void postponedDisposal() throws Throwable {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
         StatefulDisposable disposable =
                 new StatefulDisposable(
                         Disposable.State.TO_DISPOSE,
@@ -149,6 +147,7 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void combined() throws Throwable {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         Disposable noProblem = new SuccessfulDisposable();
 
@@ -177,7 +176,8 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void showProblems() throws Exception {
-        disposer = get();
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
         disposer.dispose(new FailingDisposable());
 
         Thread.sleep(1000);
@@ -200,7 +200,7 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void collapseSameDisposables() {
-        disposer = get();
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         // Identical insatnces collapses
         FailingDisposable fd = new FailingDisposable();
@@ -238,6 +238,8 @@ public class AsyncResourceDisposerTest {
 
     @Test @Issue("SECURITY-997")
     public void security997() throws Exception {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
         j.jenkins.setCrumbIssuer(null);
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
@@ -245,26 +247,25 @@ public class AsyncResourceDisposerTest {
         mas.grant(Jenkins.ADMINISTER).everywhere().to("admin");
         j.jenkins.setAuthorizationStrategy(mas);
 
-        String disposerUrl = j.getURL() + disposer.getUrl();
-        URL actionUrl = new URL(disposerUrl + "/stopTracking/?id=42");
+        String actionUrl = disposer.getUrl() + "/stopTracking/?id=42";
         JenkinsRule.WebClient uwc = j.createWebClient().login("user", "user");
 
         try {
-            uwc.getPage(disposerUrl);
+            uwc.goTo(disposer.getUrl());
             fail();
         } catch (FailingHttpStatusCodeException ex) {
             assertEquals(HttpServletResponse.SC_FORBIDDEN, ex.getResponse().getStatusCode());
         }
 
         try {
-            uwc.getPage(new WebRequest(actionUrl, HttpMethod.POST));
+            uwc.getPage(new WebRequest(new URL(j.getURL() + actionUrl), HttpMethod.POST));
             fail();
         } catch (FailingHttpStatusCodeException ex) {
             assertEquals(HttpServletResponse.SC_FORBIDDEN, ex.getResponse().getStatusCode());
         }
 
         try {
-            uwc.getPage(actionUrl);
+            uwc.goTo(actionUrl);
             fail();
         } catch (FailingHttpStatusCodeException ex) {
             // Never jenkins/stapler version reversed the order of checks apparently
@@ -273,11 +274,11 @@ public class AsyncResourceDisposerTest {
         }
 
         JenkinsRule.WebClient awc = j.createWebClient().login("admin", "admin");
-        awc.getPage(disposerUrl);
-        awc.getPage(new WebRequest(actionUrl, HttpMethod.POST));
+        awc.goTo(disposer.getUrl());
+        awc.getPage(new WebRequest(new URL(j.getURL() + actionUrl), HttpMethod.POST));
 
         try {
-            awc.getPage(actionUrl);
+            awc.goTo(actionUrl);
             fail();
         } catch (FailingHttpStatusCodeException ex) {
             assertEquals(HttpServletResponse.SC_METHOD_NOT_ALLOWED, ex.getResponse().getStatusCode());
@@ -286,8 +287,9 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void concurrentDisposablesAreThrottled() throws InterruptedException {
-        disposer = get();
-        final int MPS = MAXIMUM_POOL_SIZE;
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
+        final int MPS = AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
 
         // Almost fill the pool
         for (int i = 0; i < MPS - 1; i++) {
@@ -336,13 +338,13 @@ public class AsyncResourceDisposerTest {
         private final OneShotEvent start = new OneShotEvent();
         private final OneShotEvent end = new OneShotEvent();
 
-        @Nonnull @Override public State dispose() throws Throwable {
+        @NonNull @Override public State dispose() throws Throwable {
             start.signal();
             end.block();
             return State.PURGED;
         }
 
-        @Nonnull @Override public String getDisplayName() {
+        @NonNull @Override public String getDisplayName() {
             return "Blocked " + hashCode();
         }
 
@@ -353,8 +355,9 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void preventLivelockWithManyStalledInstances() throws Throwable {
-        disposer = get();
-        final int MPS = MAXIMUM_POOL_SIZE;
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
+        final int MPS = AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
 
         // Fill with stalled
         for (int i = 0; i < MPS; i++) {
@@ -378,14 +381,14 @@ public class AsyncResourceDisposerTest {
 
         public static volatile boolean signal = false;
 
-        @Nonnull @Override public State dispose() throws Throwable {
+        @NonNull @Override public State dispose() throws Throwable {
             while(!signal) {
                 Thread.sleep(10);
             }
             return State.TO_DISPOSE;
         }
 
-        @Nonnull @Override public String getDisplayName() {
+        @NonNull @Override public String getDisplayName() {
             return "Occupado";
         }
     }
@@ -393,12 +396,12 @@ public class AsyncResourceDisposerTest {
     private static final class SuccessfulDisposable implements Disposable {
         private static final long serialVersionUID = 4648005477636912909L;
 
-        @Nonnull @Override public State dispose() {
+        @NonNull @Override public State dispose() {
             System.out.println("SD" + System.identityHashCode(this));
             return State.PURGED;
         }
 
-        @Nonnull @Override public String getDisplayName() {
+        @NonNull @Override public String getDisplayName() {
             return "Yes, Sir!";
         }
     }
@@ -419,13 +422,13 @@ public class AsyncResourceDisposerTest {
             return invocationCount.get();
         }
 
-        @Nonnull
+        @NonNull
         @Override
         public State dispose() {
             return states.get(invocationCount.getAndIncrement());
         }
 
-        @Nonnull
+        @NonNull
         @Override
         public String getDisplayName() {
             return "Stateful Disposable";

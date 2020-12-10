@@ -23,6 +23,32 @@
  */
 package org.jenkinsci.plugins.resourcedisposer;
 
+import com.google.common.annotations.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+import hudson.Extension;
+import hudson.ExtensionList;
+import hudson.XmlFile;
+import hudson.model.AdministrativeMonitor;
+import hudson.model.PeriodicWork;
+import hudson.util.DaemonThreadFactory;
+import hudson.util.ExceptionCatchingThreadFactory;
+import hudson.util.HttpResponses;
+import hudson.util.NamingThreadFactory;
+
+import jenkins.model.Jenkins;
+
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -37,29 +63,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import com.google.common.annotations.VisibleForTesting;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import hudson.Extension;
-import hudson.ExtensionList;
-import hudson.XmlFile;
-import hudson.model.AdministrativeMonitor;
-import hudson.model.PeriodicWork;
-import hudson.util.DaemonThreadFactory;
-import hudson.util.ExceptionCatchingThreadFactory;
-import hudson.util.HttpResponses;
-import hudson.util.NamingThreadFactory;
-import jenkins.model.Jenkins;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.DoNotUse;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.HttpResponse;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
-import org.kohsuke.stapler.interceptor.RequirePOST;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
 
 /**
  * Track resources to be disposed asynchronously.
@@ -93,9 +96,9 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     /**
      * Persist all entries to dispose in order to survive restart.
      */
-    private final @Nonnull Set<WorkItem> backlog = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final @NonNull Set<WorkItem> backlog = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    public static @Nonnull AsyncResourceDisposer get() {
+    public static @NonNull AsyncResourceDisposer get() {
         return ExtensionList.lookupSingleton(AsyncResourceDisposer.class);
     }
 
@@ -117,7 +120,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
      *
      * @return Entries to be processed.
      */
-    public @Nonnull Set<WorkItem> getBacklog() {
+    public @NonNull Set<WorkItem> getBacklog() {
         synchronized (backlog) {
             return new HashSet<>(backlog);
         }
@@ -147,7 +150,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
      *
      * @param disposables Resource wrappers to be deleted.
      */
-    public void dispose(final @Nonnull Disposable... disposables) {
+    public void dispose(final @NonNull Disposable... disposables) {
         boolean modified = false;
         for (Disposable disposable : disposables) {
             WorkItem item = new WorkItem(this, disposable);
@@ -167,7 +170,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
      *
      * @param disposables Resource wrappers to be deleted.
      */
-    public void dispose(final @Nonnull Iterable<? extends Disposable> disposables) {
+    public void dispose(final @NonNull Iterable<? extends Disposable> disposables) {
         boolean modified = false;
         for (Disposable disposable : disposables) {
             WorkItem item = new WorkItem(this, disposable);
@@ -185,7 +188,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     @Restricted(DoNotUse.class)
     @RequirePOST
     public HttpResponse doStopTracking(@QueryParameter int id, StaplerResponse rsp) {
-        Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         for (WorkItem workItem : getBacklog()) {
             if (workItem.getId() == id) {
                 boolean removed = backlog.remove(workItem);
@@ -219,7 +222,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     }
 
     private XmlFile getConfigFile() {
-        Jenkins instance = Jenkins.getInstance();
+        Jenkins instance = Jenkins.getInstanceOrNull();
         if (instance == null) throw new IllegalStateException();
         return new XmlFile(Jenkins.XSTREAM, new File(new File(
                 instance.root,
@@ -234,33 +237,33 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     public static final class WorkItem implements Runnable, Serializable {
         private static final long serialVersionUID = 1L;
 
-        private final @Nonnull AsyncResourceDisposer disposer;
+        private final @NonNull AsyncResourceDisposer disposer;
 
-        private /*final*/ @Nonnull Disposable disposable;
-        private final @Nonnull Date registered = new Date();
+        private /*final*/ @NonNull Disposable disposable;
+        private final @NonNull Date registered = new Date();
 
         // There is no reason to serialize something here as after restart it will either succeed or fail again farly soon.
-        private volatile transient @Nonnull Disposable.State lastState = Disposable.State.TO_DISPOSE;
+        private volatile transient @NonNull Disposable.State lastState = Disposable.State.TO_DISPOSE;
         private volatile transient boolean inProgress;
 
         // Hold the details while persisted so eventual problems with deserializing can be diagnosed
         private @CheckForNull String disposableInfo;
 
-        private WorkItem(@Nonnull AsyncResourceDisposer disposer, @Nonnull Disposable disposable) {
+        private WorkItem(@NonNull AsyncResourceDisposer disposer, @NonNull Disposable disposable) {
             this.disposer = disposer;
             this.disposable = disposable;
             readResolve();
         }
 
-        public @Nonnull Disposable getDisposable() {
+        public @NonNull Disposable getDisposable() {
             return disposable;
         }
 
-        public @Nonnull Date getRegistered() {
+        public @NonNull Date getRegistered() {
             return new Date(registered.getTime());
         }
 
-        public @Nonnull Disposable.State getLastState() {
+        public @NonNull Disposable.State getLastState() {
             return lastState;
         }
 
@@ -335,12 +338,12 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
             }
 
             @Override
-            public @Nonnull State dispose() {
+            public @NonNull State dispose() {
                 return State.PURGED;
             }
 
             @Override
-            public @Nonnull String getDisplayName() {
+            public @NonNull String getDisplayName() {
                 return msg;
             }
         }
@@ -357,7 +360,6 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
         @Override
         protected void doRun() {
-            //noinspection deprecation
             AsyncResourceDisposer.get().reschedule();
         }
 
