@@ -37,8 +37,6 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import org.jenkinsci.plugins.resourcedisposer.Disposable.State.Thrown;
-import org.jenkinsci.plugins.resourcedisposer.Disposable.State.ToDispose;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -57,8 +55,8 @@ public class PersistenceTest {
                 disposer.disposeAndWait(new FailingDisposable()).get();
                 AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
 
-                assertThat(item.getLastState(), instanceOf(Thrown.class));
-                Thrown failure = (Thrown) item.getLastState();
+                assertThat(item.getLastState(), instanceOf(Disposable.State.Thrown.class));
+                Disposable.State.Thrown failure = (Disposable.State.Thrown) item.getLastState();
                 assertThat(failure.getCause().getMessage(), equalTo(FailingDisposable.EXCEPTION.getMessage()));
         });
         sessions.then(r -> {
@@ -67,7 +65,7 @@ public class PersistenceTest {
 
                 Disposable.State lastState = item.getLastState();
                 // It is ok if this is not deserialized 100% same
-                assertTrue("Failed or ready to be rechecked", (lastState instanceof ToDispose) || (lastState instanceof Thrown));
+                assertTrue("Failed or ready to be rechecked", (lastState instanceof Disposable.State.ToDispose) || (lastState instanceof Disposable.State.Thrown));
         });
     }
 

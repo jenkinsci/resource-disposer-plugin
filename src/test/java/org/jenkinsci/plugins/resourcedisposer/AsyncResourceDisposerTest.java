@@ -31,8 +31,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
-import static org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
-import static org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer.get;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -49,7 +47,6 @@ import hudson.util.OneShotEvent;
 
 import jenkins.model.Jenkins;
 
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -73,15 +70,10 @@ public class AsyncResourceDisposerTest {
 
     @Rule public final JenkinsRule j = new JenkinsRule();
 
-    private AsyncResourceDisposer disposer;
-
-    @Before
-    public void setUp() {
-        disposer = get();
-    }
-
     @Test
     public void disposeImmediately() throws Throwable {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
         Disposable disposable = new SuccessfulDisposable();
 
         disposer.disposeAndWait(disposable).get();
@@ -92,6 +84,8 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void neverDispose() throws Throwable {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
         final IOException error = new IOException("to be thrown");
 
         Disposable disposable = new ThrowDisposable(error);
@@ -135,6 +129,8 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void postponedDisposal() throws Throwable {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
         StatefulDisposable disposable =
                 new StatefulDisposable(
                         Disposable.State.TO_DISPOSE,
@@ -151,6 +147,7 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void combined() throws Throwable {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         Disposable noProblem = new SuccessfulDisposable();
 
@@ -179,7 +176,8 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void showProblems() throws Exception {
-        disposer = get();
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
         disposer.dispose(new FailingDisposable());
 
         Thread.sleep(1000);
@@ -202,7 +200,7 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void collapseSameDisposables() {
-        disposer = get();
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         // Identical insatnces collapses
         FailingDisposable fd = new FailingDisposable();
@@ -240,6 +238,8 @@ public class AsyncResourceDisposerTest {
 
     @Test @Issue("SECURITY-997")
     public void security997() throws Exception {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
         j.jenkins.setCrumbIssuer(null);
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
@@ -287,8 +287,9 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void concurrentDisposablesAreThrottled() throws InterruptedException {
-        disposer = get();
-        final int MPS = MAXIMUM_POOL_SIZE;
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
+        final int MPS = AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
 
         // Almost fill the pool
         for (int i = 0; i < MPS - 1; i++) {
@@ -354,8 +355,9 @@ public class AsyncResourceDisposerTest {
 
     @Test
     public void preventLivelockWithManyStalledInstances() throws Throwable {
-        disposer = get();
-        final int MPS = MAXIMUM_POOL_SIZE;
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
+        final int MPS = AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
 
         // Fill with stalled
         for (int i = 0; i < MPS; i++) {
