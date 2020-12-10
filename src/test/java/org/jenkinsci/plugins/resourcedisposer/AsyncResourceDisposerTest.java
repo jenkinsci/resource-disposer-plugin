@@ -244,26 +244,25 @@ public class AsyncResourceDisposerTest {
         mas.grant(Jenkins.ADMINISTER).everywhere().to("admin");
         j.jenkins.setAuthorizationStrategy(mas);
 
-        String disposerUrl = j.getURL() + disposer.getUrl();
-        URL actionUrl = new URL(disposerUrl + "/stopTracking/?id=42");
+        String actionUrl = disposer.getUrl() + "/stopTracking/?id=42";
         JenkinsRule.WebClient uwc = j.createWebClient().login("user", "user");
 
         try {
-            uwc.getPage(disposerUrl);
+            uwc.goTo(disposer.getUrl());
             fail();
         } catch (FailingHttpStatusCodeException ex) {
             assertEquals(HttpServletResponse.SC_FORBIDDEN, ex.getResponse().getStatusCode());
         }
 
         try {
-            uwc.getPage(new WebRequest(actionUrl, HttpMethod.POST));
+            uwc.getPage(new WebRequest(new URL(j.getURL() + actionUrl), HttpMethod.POST));
             fail();
         } catch (FailingHttpStatusCodeException ex) {
             assertEquals(HttpServletResponse.SC_FORBIDDEN, ex.getResponse().getStatusCode());
         }
 
         try {
-            uwc.getPage(actionUrl);
+            uwc.goTo(actionUrl);
             fail();
         } catch (FailingHttpStatusCodeException ex) {
             // Never jenkins/stapler version reversed the order of checks apparently
@@ -272,11 +271,11 @@ public class AsyncResourceDisposerTest {
         }
 
         JenkinsRule.WebClient awc = j.createWebClient().login("admin", "admin");
-        awc.getPage(disposerUrl);
-        awc.getPage(new WebRequest(actionUrl, HttpMethod.POST));
+        awc.goTo(disposer.getUrl());
+        awc.getPage(new WebRequest(new URL(j.getURL() + actionUrl), HttpMethod.POST));
 
         try {
-            awc.getPage(actionUrl);
+            awc.goTo(actionUrl);
             fail();
         } catch (FailingHttpStatusCodeException ex) {
             assertEquals(HttpServletResponse.SC_METHOD_NOT_ALLOWED, ex.getResponse().getStatusCode());
