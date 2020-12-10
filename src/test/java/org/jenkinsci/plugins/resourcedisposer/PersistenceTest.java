@@ -31,7 +31,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.JenkinsSessionRule;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -94,12 +94,12 @@ public class PersistenceTest {
         private static final long serialVersionUID = 3007902823296336222L;
 
         @Override
-        public @Nonnull State dispose() {
+        public @NonNull State dispose() {
             return State.TO_DISPOSE;
         }
 
         @Override
-        public @Nonnull String getDisplayName() {
+        public @NonNull String getDisplayName() {
             return "Will disappear after restart";
         }
 

@@ -37,7 +37,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.powermock.reflect.Whitebox;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URL;
@@ -118,12 +118,12 @@ public class AsyncResourceDisposerTest {
         }
 
         @Override
-        public @Nonnull State dispose() throws Throwable {
+        public @NonNull State dispose() throws Throwable {
             throw ex;
         }
 
         @Override
-        public @Nonnull String getDisplayName() {
+        public @NonNull String getDisplayName() {
             return "Throwing";
         }
     }
@@ -332,13 +332,13 @@ public class AsyncResourceDisposerTest {
         private final OneShotEvent start = new OneShotEvent();
         private final OneShotEvent end = new OneShotEvent();
 
-        @Nonnull @Override public State dispose() throws Throwable {
+        @NonNull @Override public State dispose() throws Throwable {
             start.signal();
             end.block();
             return State.PURGED;
         }
 
-        @Nonnull @Override public String getDisplayName() {
+        @NonNull @Override public String getDisplayName() {
             return "Blocked " + hashCode();
         }
 
@@ -374,14 +374,14 @@ public class AsyncResourceDisposerTest {
 
         public static volatile boolean signal = false;
 
-        @Nonnull @Override public State dispose() throws Throwable {
+        @NonNull @Override public State dispose() throws Throwable {
             while(!signal) {
                 Thread.sleep(10);
             }
             return State.TO_DISPOSE;
         }
 
-        @Nonnull @Override public String getDisplayName() {
+        @NonNull @Override public String getDisplayName() {
             return "Occupado";
         }
     }
@@ -389,12 +389,12 @@ public class AsyncResourceDisposerTest {
     private static final class SuccessfulDisposable implements Disposable {
         private static final long serialVersionUID = 4648005477636912909L;
 
-        @Nonnull @Override public State dispose() {
+        @NonNull @Override public State dispose() {
             System.out.println("SD" + System.identityHashCode(this));
             return State.PURGED;
         }
 
-        @Nonnull @Override public String getDisplayName() {
+        @NonNull @Override public String getDisplayName() {
             return "Yes, Sir!";
         }
     }
@@ -415,13 +415,13 @@ public class AsyncResourceDisposerTest {
             return invocationCount.get();
         }
 
-        @Nonnull
+        @NonNull
         @Override
         public State dispose() {
             return states.get(invocationCount.getAndIncrement());
         }
 
-        @Nonnull
+        @NonNull
         @Override
         public String getDisplayName() {
             return "Stateful Disposable";
