@@ -185,7 +185,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     @Restricted(DoNotUse.class)
     @RequirePOST
     public HttpResponse doStopTracking(@QueryParameter int id, StaplerResponse rsp) {
-        Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         for (WorkItem workItem : getBacklog()) {
             if (workItem.getId() == id) {
                 boolean removed = backlog.remove(workItem);
@@ -219,7 +219,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     }
 
     private XmlFile getConfigFile() {
-        Jenkins instance = Jenkins.getInstance();
+        Jenkins instance = Jenkins.getInstanceOrNull();
         if (instance == null) throw new IllegalStateException();
         return new XmlFile(Jenkins.XSTREAM, new File(new File(
                 instance.root,
