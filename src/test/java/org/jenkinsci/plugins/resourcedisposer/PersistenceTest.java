@@ -28,9 +28,8 @@ import org.jenkinsci.plugins.resourcedisposer.Disposable.State.Thrown;
 import org.jenkinsci.plugins.resourcedisposer.Disposable.State.ToDispose;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.RestartableJenkinsRule;
+import org.jvnet.hudson.test.JenkinsSessionRule;
 
 import javax.annotation.Nonnull;
 import java.io.ObjectStreamException;
@@ -47,12 +46,11 @@ import static org.junit.Assert.assertTrue;
 
 public class PersistenceTest {
     @Rule
-    public RestartableJenkinsRule j = new RestartableJenkinsRule();
+    public JenkinsSessionRule sessions = new JenkinsSessionRule();
 
     @Test
-    public void persistEntries() {
-        j.addStep(new Statement() {
-            @Override public void evaluate() throws Exception {
+    public void persistEntries() throws Throwable {
+        sessions.then(r -> {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
                 disposer.disposeAndWait(new FailingDisposable()).get();
                 AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
@@ -60,31 +58,25 @@ public class PersistenceTest {
                 assertThat(item.getLastState(), instanceOf(Thrown.class));
                 Thrown failure = (Thrown) item.getLastState();
                 assertThat(failure.getCause().getMessage(), equalTo(FailingDisposable.EXCEPTION.getMessage()));
-            }
         });
-        j.addStep(new Statement() {
-            @Override public void evaluate() {
+        sessions.then(r -> {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
                 AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
 
                 Disposable.State lastState = item.getLastState();
                 // It is ok if this is not deserialized 100% same
                 assertTrue("Failed or ready to be rechecked", (lastState instanceof ToDispose) || (lastState instanceof Thrown));
-            }
         });
     }
 
     @Test
-    public void recoverWhenDisposableCanNotBeDeserialized() {
-        j.addStep(new Statement() {
-            @Override public void evaluate() {
+    public void recoverWhenDisposableCanNotBeDeserialized() throws Throwable {
+        sessions.then(r -> {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
                 disposer.dispose(new DisappearingDisposable());
                 assertThat(disposer.getBacklog(), iterableWithSize(1));
-            }
         });
-        j.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+        sessions.then(r -> {
                 AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
                 // Current implementation will remove it so the backlog will be empty - either way NPE should not be thrown
                 for (AsyncResourceDisposer.WorkItem item : disposer.getBacklog()) {
@@ -92,11 +84,10 @@ public class PersistenceTest {
                     item.toString();
                 }
 
-                JenkinsRule.WebClient wc = j.j.createWebClient();
+                JenkinsRule.WebClient wc = r.createWebClient();
                 HtmlPage page = wc.goTo("administrativeMonitor/AsyncResourceDisposer");
                 assertThat(page.getWebResponse().getContentAsString(), containsString("Asynchronous resource disposer"));
                 assertThat(page.getWebResponse().getContentAsString(), not(containsString("Exception")));
-            }
         });
     }
     private static final class DisappearingDisposable implements Disposable {
