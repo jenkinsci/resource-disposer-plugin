@@ -243,8 +243,8 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         private final @NonNull Date registered = new Date();
 
         // There is no reason to serialize something here as after restart it will either succeed or fail again farly soon.
-        private volatile transient @NonNull Disposable.State lastState = Disposable.State.TO_DISPOSE;
-        private volatile transient boolean inProgress;
+        private transient volatile @NonNull Disposable.State lastState = Disposable.State.TO_DISPOSE;
+        private transient volatile boolean inProgress;
 
         // Hold the details while persisted so eventual problems with deserializing can be diagnosed
         private @CheckForNull String disposableInfo;
@@ -385,9 +385,9 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         for (WorkItem workItem: getBacklog()) {
             if (workItem.inProgress) {
                 // No need to reschedule
-                LOGGER.fine(workItem + " is in progress");
+                LOGGER.log(Level.FINE, "{0} is in progress", workItem);
             } else {
-                LOGGER.fine("Rescheduling " + workItem);
+                LOGGER.log(Level.FINE, "Rescheduling {0}", workItem);
                 worker.submit(workItem);
             }
         }
@@ -404,9 +404,9 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         for (WorkItem workItem: getBacklog()) {
             if (workItem.inProgress) {
                 // No need to reschedule
-                LOGGER.fine(workItem + " is in progress");
+                LOGGER.log(Level.FINE, "{0} is in progress", workItem);
             } else {
-                LOGGER.finer("Rescheduling " + workItem);
+                LOGGER.log(Level.FINER, "Rescheduling {0}", workItem);
                 Future<?> f = worker.submit(workItem);
                 futures.add(f);
             }

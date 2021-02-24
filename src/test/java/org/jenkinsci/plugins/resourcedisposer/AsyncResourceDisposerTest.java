@@ -33,8 +33,8 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.HttpMethod;
@@ -250,39 +250,30 @@ public class AsyncResourceDisposerTest {
         String actionUrl = disposer.getUrl() + "/stopTracking/?id=42";
         JenkinsRule.WebClient uwc = j.createWebClient().login("user", "user");
 
-        try {
-            uwc.goTo(disposer.getUrl());
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-            assertEquals(HttpServletResponse.SC_FORBIDDEN, ex.getResponse().getStatusCode());
-        }
+        String url = disposer.getUrl();
+        FailingHttpStatusCodeException ex =
+                assertThrows(FailingHttpStatusCodeException.class, () -> uwc.goTo(url));
+        assertEquals(HttpServletResponse.SC_FORBIDDEN, ex.getResponse().getStatusCode());
 
-        try {
-            uwc.getPage(new WebRequest(new URL(j.getURL() + actionUrl), HttpMethod.POST));
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-            assertEquals(HttpServletResponse.SC_FORBIDDEN, ex.getResponse().getStatusCode());
-        }
+        WebRequest wr = new WebRequest(new URL(j.getURL() + actionUrl), HttpMethod.POST);
+        ex = assertThrows(FailingHttpStatusCodeException.class, () -> uwc.getPage(wr));
+        assertEquals(HttpServletResponse.SC_FORBIDDEN, ex.getResponse().getStatusCode());
 
-        try {
-            uwc.goTo(actionUrl);
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-            // Never jenkins/stapler version reversed the order of checks apparently
-            int statusCode = ex.getResponse().getStatusCode();
-            assertThat(statusCode, anyOf(equalTo(HttpServletResponse.SC_METHOD_NOT_ALLOWED), equalTo(HttpServletResponse.SC_FORBIDDEN)));
-        }
+        ex = assertThrows(FailingHttpStatusCodeException.class, () -> uwc.goTo(actionUrl));
+        // Newer jenkins/stapler version reversed the order of checks apparently
+        int statusCode = ex.getResponse().getStatusCode();
+        assertThat(
+                statusCode,
+                anyOf(
+                        equalTo(HttpServletResponse.SC_METHOD_NOT_ALLOWED),
+                        equalTo(HttpServletResponse.SC_FORBIDDEN)));
 
         JenkinsRule.WebClient awc = j.createWebClient().login("admin", "admin");
         awc.goTo(disposer.getUrl());
         awc.getPage(new WebRequest(new URL(j.getURL() + actionUrl), HttpMethod.POST));
 
-        try {
-            awc.goTo(actionUrl);
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-            assertEquals(HttpServletResponse.SC_METHOD_NOT_ALLOWED, ex.getResponse().getStatusCode());
-        }
+        ex = assertThrows(FailingHttpStatusCodeException.class, () -> awc.goTo(actionUrl));
+        assertEquals(HttpServletResponse.SC_METHOD_NOT_ALLOWED, ex.getResponse().getStatusCode());
     }
 
     @Test
