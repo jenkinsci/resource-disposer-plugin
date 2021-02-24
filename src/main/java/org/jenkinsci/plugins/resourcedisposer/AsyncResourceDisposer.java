@@ -243,8 +243,8 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         private final @NonNull Date registered = new Date();
 
         // There is no reason to serialize something here as after restart it will either succeed or fail again farly soon.
-        private volatile transient @NonNull Disposable.State lastState = Disposable.State.TO_DISPOSE;
-        private volatile transient boolean inProgress;
+        private transient volatile @NonNull Disposable.State lastState = Disposable.State.TO_DISPOSE;
+        private transient volatile boolean inProgress;
 
         // Hold the details while persisted so eventual problems with deserializing can be diagnosed
         private @CheckForNull String disposableInfo;
