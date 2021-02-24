@@ -34,7 +34,7 @@ To integrate your plugin with Resource Disposer, follow these instructions.
 
 === Overview
 
-Resource Disposer defines a single point of entry, `AsyncResourceDisposer.get().dispose(…)`, for consumers to have resources deleted asynchronously.
+Resource Disposer defines a single point of entry, `AsyncResourceDisposer.get().dispose()`, for consumers to have resources deleted asynchronously.
 Resource Disposer tracks the resources and attempts to dispose of them periodically until it succeeds.
 The registered resource is represented as a `Disposable`, a named wrapper that knows how the resource should be disposed of through `Disposable#dispose()`.
 The method is expected to either confirm the resource has been disposed of (by returning) or to provide the reason the resource could not be disposed of (for mere convenience, by throwing an exception that will be captured as the reason).
