@@ -385,9 +385,9 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         for (WorkItem workItem: getBacklog()) {
             if (workItem.inProgress) {
                 // No need to reschedule
-                LOGGER.fine(workItem + " is in progress");
+                LOGGER.log(Level.FINE, "{0} is in progress", workItem);
             } else {
-                LOGGER.fine("Rescheduling " + workItem);
+                LOGGER.log(Level.FINE, "Rescheduling {0}", workItem);
                 worker.submit(workItem);
             }
         }
@@ -404,9 +404,9 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         for (WorkItem workItem: getBacklog()) {
             if (workItem.inProgress) {
                 // No need to reschedule
-                LOGGER.fine(workItem + " is in progress");
+                LOGGER.log(Level.FINE, "{0} is in progress", workItem);
             } else {
-                LOGGER.finer("Rescheduling " + workItem);
+                LOGGER.log(Level.FINER, "Rescheduling {0}", workItem);
                 Future<?> f = worker.submit(workItem);
                 futures.add(f);
             }
