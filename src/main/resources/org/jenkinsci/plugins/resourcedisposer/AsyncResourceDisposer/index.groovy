@@ -40,7 +40,7 @@ l.layout(permission: app.ADMINISTER) {
                 th(_("Resource"))
                 th(_("State"))
                 th(_("Tracked since"))
-                th("&nbsp;")
+                th(st.nbsp())
             }
             DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm")
             for (AsyncResourceDisposer.WorkItem item in my.backlog) {
