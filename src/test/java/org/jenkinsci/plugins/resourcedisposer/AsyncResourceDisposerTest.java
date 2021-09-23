@@ -52,9 +52,9 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
-import org.powermock.reflect.Whitebox;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -188,7 +188,7 @@ public class AsyncResourceDisposerTest {
         HtmlPage manage = wc.goTo("manage");
         assertThat(manage.asText(), not(containsString("There are resources Jenkins was not able to dispose automatically")));
 
-        Whitebox.setInternalState(disposer.getBacklog().iterator().next(), "registered", new Date(0)); // Make it decades old
+        setInternalState(disposer.getBacklog().iterator().next(), "registered", new Date(0)); // Make it decades old
 
         assertTrue(disposer.isActivated());
         manage = wc.goTo("manage");
@@ -365,6 +365,12 @@ public class AsyncResourceDisposerTest {
         OccupyingDisposable.signal = true;
         Thread.sleep(1000);
         assertThat(disposer.getBacklog(), iterableWithSize(MPS));
+    }
+
+    private void setInternalState(Object obj, String fieldName, Object newValue) throws NoSuchFieldException, IllegalAccessException {
+        Field field = obj.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(obj, newValue);
     }
 
     private static final class OccupyingDisposable implements Disposable {
