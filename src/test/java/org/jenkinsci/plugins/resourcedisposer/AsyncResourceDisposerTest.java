@@ -186,16 +186,16 @@ public class AsyncResourceDisposerTest {
 
         assertFalse(disposer.isActivated());
         HtmlPage manage = wc.goTo("manage");
-        assertThat(manage.asText(), not(containsString("There are resources Jenkins was not able to dispose automatically")));
+        assertThat(manage.asNormalizedText(), not(containsString("There are resources Jenkins was not able to dispose automatically")));
 
         setInternalState(disposer.getBacklog().iterator().next(), "registered", new Date(0)); // Make it decades old
 
         assertTrue(disposer.isActivated());
         manage = wc.goTo("manage");
-        assertThat(manage.asText(), containsString("There are resources Jenkins was not able to dispose automatically"));
+        assertThat(manage.asNormalizedText(), containsString("There are resources Jenkins was not able to dispose automatically"));
         HtmlPage report = wc.goTo(disposer.getUrl());
-        assertThat(report.asText(), containsString("Failing disposable"));
-        assertThat(report.asText(), containsString("IOException: Unable to dispose"));
+        assertThat(report.asNormalizedText(), containsString("Failing disposable"));
+        assertThat(report.asNormalizedText(), containsString("IOException: Unable to dispose"));
     }
 
     @Test
