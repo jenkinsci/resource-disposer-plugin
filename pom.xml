@@ -9,7 +9,7 @@
   </parent>
 
   <artifactId>resource-disposer</artifactId>
-  <version>${revision}${changelist}</version>
+  <version>0.17</version>
   <packaging>hpi</packaging>
   <name>Resource Disposer Plugin</name>
   <description>Dispose resources asynchronously. Utility plugin for resources that require more retries or take a long time to delete.</description>
@@ -39,7 +39,7 @@
     <connection>scm:git:git://github.com/${gitHubRepo}.git</connection>
     <developerConnection>scm:git:git@github.com:${gitHubRepo}.git</developerConnection>
     <url>https://github.com/${gitHubRepo}</url>
-    <tag>${scmTag}</tag>
+    <tag>resource-disposer-0.17</tag>
   </scm>
 
   <dependencyManagement>
