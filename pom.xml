@@ -9,7 +9,7 @@
   </parent>
 
   <artifactId>resource-disposer</artifactId>
-  <version>0.17</version>
+  <version>${revision}${changelist}</version>
   <packaging>hpi</packaging>
   <name>Resource Disposer Plugin</name>
   <description>Dispose resources asynchronously. Utility plugin for resources that require more retries or take a long time to delete.</description>
@@ -39,7 +39,7 @@
     <connection>scm:git:git://github.com/${gitHubRepo}.git</connection>
     <developerConnection>scm:git:git@github.com:${gitHubRepo}.git</developerConnection>
     <url>https://github.com/${gitHubRepo}</url>
-    <tag>resource-disposer-0.17</tag>
+    <tag>${scmTag}</tag>
   </scm>
 
   <dependencyManagement>
@@ -77,7 +77,7 @@
   </pluginRepositories>
 
   <properties>
-    <revision>0.17</revision>
+    <revision>0.18</revision>
     <changelist>-SNAPSHOT</changelist>
     <jenkins.version>2.235.5</jenkins.version>
     <java.level>8</java.level>
