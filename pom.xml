@@ -12,7 +12,6 @@
   <version>${revision}${changelist}</version>
   <packaging>hpi</packaging>
   <name>Resource Disposer Plugin</name>
-  <description>Dispose resources asynchronously. Utility plugin for resources that require more retries or take a long time to delete.</description>
   <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
 
   <developers>
