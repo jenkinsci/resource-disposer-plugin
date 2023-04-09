@@ -24,7 +24,6 @@
 package org.jenkinsci.plugins.resourcedisposer;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-
 import java.io.Serializable;
 
 /**
@@ -55,7 +54,8 @@ public interface Disposable extends Serializable {
      * @return State of the resource after the attempt. {@link State#PURGED} in case the resource do not need to be tracked any longer.
      * @throws Throwable Problem disposing the resource. The exception thrown will be reported as a reason the dispose attempt failed.
      */
-    @NonNull State dispose() throws Throwable;
+    @NonNull
+    State dispose() throws Throwable;
 
     /**
      * Text description of the disposable.
@@ -63,7 +63,8 @@ public interface Disposable extends Serializable {
      * @return String providing enough of a hint for admin to know the resource
      * kind and identity. Ex.: "Docker container my/tag"
      */
-    @NonNull String getDisplayName();
+    @NonNull
+    String getDisplayName();
 
     abstract class State implements Serializable {
         private static final long serialVersionUID = -2908370512742097295L;
@@ -106,7 +107,8 @@ public interface Disposable extends Serializable {
                 this.cause = cause;
             }
 
-            @NonNull public Throwable getCause() {
+            @NonNull
+            public Throwable getCause() {
                 return cause;
             }
         }

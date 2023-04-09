@@ -34,15 +34,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-
 import edu.umd.cs.findbugs.annotations.NonNull;
-
+import java.util.Set;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.JenkinsSessionRule;
-
-import java.util.Set;
 
 public class PersistenceTest {
     @Rule
@@ -51,45 +48,49 @@ public class PersistenceTest {
     @Test
     public void persistEntries() throws Throwable {
         sessions.then(r -> {
-                AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-                disposer.disposeAndWait(new FailingDisposable()).get();
-                AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
+            AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+            disposer.disposeAndWait(new FailingDisposable()).get();
+            AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
 
-                assertThat(item.getLastState(), instanceOf(Disposable.State.Thrown.class));
-                Disposable.State.Thrown failure = (Disposable.State.Thrown) item.getLastState();
-                assertThat(failure.getCause().getMessage(), equalTo(FailingDisposable.EXCEPTION.getMessage()));
+            assertThat(item.getLastState(), instanceOf(Disposable.State.Thrown.class));
+            Disposable.State.Thrown failure = (Disposable.State.Thrown) item.getLastState();
+            assertThat(failure.getCause().getMessage(), equalTo(FailingDisposable.EXCEPTION.getMessage()));
         });
         sessions.then(r -> {
-                AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-                AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
+            AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+            AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
 
-                Disposable.State lastState = item.getLastState();
-                // It is ok if this is not deserialized 100% same
-                assertTrue("Failed or ready to be rechecked", (lastState instanceof Disposable.State.ToDispose) || (lastState instanceof Disposable.State.Thrown));
+            Disposable.State lastState = item.getLastState();
+            // It is ok if this is not deserialized 100% same
+            assertTrue(
+                    "Failed or ready to be rechecked",
+                    (lastState instanceof Disposable.State.ToDispose)
+                            || (lastState instanceof Disposable.State.Thrown));
         });
     }
 
     @Test
     public void recoverWhenDisposableCanNotBeDeserialized() throws Throwable {
         sessions.then(r -> {
-                AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-                disposer.dispose(new DisappearingDisposable());
-                assertThat(disposer.getBacklog(), iterableWithSize(1));
+            AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+            disposer.dispose(new DisappearingDisposable());
+            assertThat(disposer.getBacklog(), iterableWithSize(1));
         });
         sessions.then(r -> {
-                AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-                // Current implementation will remove it so the backlog will be empty - either way NPE should not be thrown
-                for (AsyncResourceDisposer.WorkItem item : disposer.getBacklog()) {
-                    assertNotEquals(null, item.getDisposable());
-                    assertNotNull(item.toString());
-                }
+            AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+            // Current implementation will remove it so the backlog will be empty - either way NPE should not be thrown
+            for (AsyncResourceDisposer.WorkItem item : disposer.getBacklog()) {
+                assertNotEquals(null, item.getDisposable());
+                assertNotNull(item.toString());
+            }
 
-                JenkinsRule.WebClient wc = r.createWebClient();
-                HtmlPage page = wc.goTo("administrativeMonitor/AsyncResourceDisposer");
-                assertThat(page.getWebResponse().getContentAsString(), containsString("Asynchronous resource disposer"));
-                assertThat(page.getWebResponse().getContentAsString(), not(containsString("Exception")));
+            JenkinsRule.WebClient wc = r.createWebClient();
+            HtmlPage page = wc.goTo("administrativeMonitor/AsyncResourceDisposer");
+            assertThat(page.getWebResponse().getContentAsString(), containsString("Asynchronous resource disposer"));
+            assertThat(page.getWebResponse().getContentAsString(), not(containsString("Exception")));
         });
     }
+
     private static final class DisappearingDisposable implements Disposable {
         private static final long serialVersionUID = 3007902823296336222L;
 
