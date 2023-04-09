@@ -40,19 +40,8 @@ import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-
 import edu.umd.cs.findbugs.annotations.NonNull;
-
 import hudson.util.OneShotEvent;
-
-import jenkins.model.Jenkins;
-
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.Issue;
-import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.MockAuthorizationStrategy;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -63,12 +52,18 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import javax.servlet.http.HttpServletResponse;
+import jenkins.model.Jenkins;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
 
 public class AsyncResourceDisposerTest {
 
-    @Rule public final JenkinsRule j = new JenkinsRule();
+    @Rule
+    public final JenkinsRule j = new JenkinsRule();
 
     @Test
     public void disposeImmediately() throws Throwable {
@@ -90,7 +85,8 @@ public class AsyncResourceDisposerTest {
 
         Disposable disposable = new ThrowDisposable(error);
 
-        AsyncResourceDisposer.WorkItem item = disposer.disposeAndWait(disposable).get();
+        AsyncResourceDisposer.WorkItem item =
+                disposer.disposeAndWait(disposable).get();
 
         Set<AsyncResourceDisposer.WorkItem> remaining = disposer.getBacklog();
         assertEquals(1, remaining.size());
@@ -101,8 +97,12 @@ public class AsyncResourceDisposerTest {
 
         int itemId = item.getId();
         HtmlPage page = j.createWebClient().goTo(disposer.getUrl());
-        page = page.getFormByName("stop-tracking-" + itemId).getInputByName("submit").click();
-        assertThat(page.getWebResponse().getContentAsString(), containsString(disposer.getDisplayName())); // Redirected back
+        page = page.getFormByName("stop-tracking-" + itemId)
+                .getInputByName("submit")
+                .click();
+        assertThat(
+                page.getWebResponse().getContentAsString(),
+                containsString(disposer.getDisplayName())); // Redirected back
 
         assertThat(disposer.getBacklog(), emptyCollectionOf(AsyncResourceDisposer.WorkItem.class));
     }
@@ -131,11 +131,8 @@ public class AsyncResourceDisposerTest {
     public void postponedDisposal() throws Throwable {
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
-        StatefulDisposable disposable =
-                new StatefulDisposable(
-                        Disposable.State.TO_DISPOSE,
-                        Disposable.State.TO_DISPOSE,
-                        Disposable.State.PURGED);
+        StatefulDisposable disposable = new StatefulDisposable(
+                Disposable.State.TO_DISPOSE, Disposable.State.TO_DISPOSE, Disposable.State.PURGED);
 
         disposer.disposeAndWait(disposable).get();
         disposer.rescheduleAndWait();
@@ -154,11 +151,8 @@ public class AsyncResourceDisposerTest {
         final IOException error = new IOException("to be thrown");
         Disposable problem = new ThrowDisposable(error);
 
-        StatefulDisposable postponed =
-                new StatefulDisposable(
-                        Disposable.State.TO_DISPOSE,
-                        Disposable.State.TO_DISPOSE,
-                        Disposable.State.PURGED);
+        StatefulDisposable postponed = new StatefulDisposable(
+                Disposable.State.TO_DISPOSE, Disposable.State.TO_DISPOSE, Disposable.State.PURGED);
 
         disposer.disposeAndWait(noProblem).get();
         disposer.disposeAndWait(problem).get();
@@ -168,7 +162,7 @@ public class AsyncResourceDisposerTest {
         disposer.rescheduleAndWait();
         disposer.rescheduleAndWait();
 
-        //verify(problem, atLeast(3)).dispose();
+        // verify(problem, atLeast(3)).dispose();
         assertEquals(3, postponed.getInvocationCount());
         assertEquals(1, disposer.getBacklog().size());
         assertEquals(problem, disposer.getBacklog().iterator().next().getDisposable());
@@ -186,13 +180,17 @@ public class AsyncResourceDisposerTest {
 
         assertFalse(disposer.isActivated());
         HtmlPage manage = wc.goTo("manage");
-        assertThat(manage.asNormalizedText(), not(containsString("There are resources Jenkins was not able to dispose automatically")));
+        assertThat(
+                manage.asNormalizedText(),
+                not(containsString("There are resources Jenkins was not able to dispose automatically")));
 
         setInternalState(disposer.getBacklog().iterator().next(), "registered", new Date(0)); // Make it decades old
 
         assertTrue(disposer.isActivated());
         manage = wc.goTo("manage");
-        assertThat(manage.asNormalizedText(), containsString("There are resources Jenkins was not able to dispose automatically"));
+        assertThat(
+                manage.asNormalizedText(),
+                containsString("There are resources Jenkins was not able to dispose automatically"));
         HtmlPage report = wc.goTo(disposer.getUrl());
         assertThat(report.asNormalizedText(), containsString("Failing disposable"));
         assertThat(report.asNormalizedText(), containsString("IOException: Unable to dispose"));
@@ -224,19 +222,23 @@ public class AsyncResourceDisposerTest {
         disposer.dispose(otherFailingDisposable);
         assertThat(disposer.getBacklog(), iterableWithSize(3));
     }
+
     private static final class SameDisposable extends FailingDisposable {
         private static final long serialVersionUID = 6769179986158394005L;
 
-        @Override public int hashCode() {
+        @Override
+        public int hashCode() {
             return 73;
         }
 
-        @Override public boolean equals(Object obj) {
+        @Override
+        public boolean equals(Object obj) {
             return obj instanceof SameDisposable;
         }
     }
 
-    @Test @Issue("SECURITY-997")
+    @Test
+    @Issue("SECURITY-997")
     public void security997() throws Exception {
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
@@ -251,8 +253,7 @@ public class AsyncResourceDisposerTest {
         JenkinsRule.WebClient uwc = j.createWebClient().login("user", "user");
 
         String url = disposer.getUrl();
-        FailingHttpStatusCodeException ex =
-                assertThrows(FailingHttpStatusCodeException.class, () -> uwc.goTo(url));
+        FailingHttpStatusCodeException ex = assertThrows(FailingHttpStatusCodeException.class, () -> uwc.goTo(url));
         assertEquals(HttpServletResponse.SC_FORBIDDEN, ex.getResponse().getStatusCode());
 
         WebRequest wr = new WebRequest(new URL(j.getURL() + actionUrl), HttpMethod.POST);
@@ -264,9 +265,7 @@ public class AsyncResourceDisposerTest {
         int statusCode = ex.getResponse().getStatusCode();
         assertThat(
                 statusCode,
-                anyOf(
-                        equalTo(HttpServletResponse.SC_METHOD_NOT_ALLOWED),
-                        equalTo(HttpServletResponse.SC_FORBIDDEN)));
+                anyOf(equalTo(HttpServletResponse.SC_METHOD_NOT_ALLOWED), equalTo(HttpServletResponse.SC_FORBIDDEN)));
 
         JenkinsRule.WebClient awc = j.createWebClient().login("admin", "admin");
         awc.goTo(disposer.getUrl());
@@ -315,7 +314,7 @@ public class AsyncResourceDisposerTest {
 
     private ArrayList<BlockingDisposable> getActive(AsyncResourceDisposer disposer) {
         ArrayList<BlockingDisposable> bds = new ArrayList<>();
-        for (AsyncResourceDisposer.WorkItem wa: disposer.getBacklog()) {
+        for (AsyncResourceDisposer.WorkItem wa : disposer.getBacklog()) {
             BlockingDisposable disposable = (BlockingDisposable) wa.getDisposable();
             if (disposable.isActive()) {
                 bds.add(disposable);
@@ -329,13 +328,17 @@ public class AsyncResourceDisposerTest {
         private final OneShotEvent start = new OneShotEvent();
         private final OneShotEvent end = new OneShotEvent();
 
-        @NonNull @Override public State dispose() throws Throwable {
+        @NonNull
+        @Override
+        public State dispose() throws Throwable {
             start.signal();
             end.block();
             return State.PURGED;
         }
 
-        @NonNull @Override public String getDisplayName() {
+        @NonNull
+        @Override
+        public String getDisplayName() {
             return "Blocked " + hashCode();
         }
 
@@ -367,7 +370,8 @@ public class AsyncResourceDisposerTest {
         assertThat(disposer.getBacklog(), iterableWithSize(MPS));
     }
 
-    private void setInternalState(Object obj, String fieldName, Object newValue) throws NoSuchFieldException, IllegalAccessException {
+    private void setInternalState(Object obj, String fieldName, Object newValue)
+            throws NoSuchFieldException, IllegalAccessException {
         Field field = obj.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(obj, newValue);
@@ -378,14 +382,18 @@ public class AsyncResourceDisposerTest {
 
         public static volatile boolean signal = false;
 
-        @NonNull @Override public State dispose() throws Throwable {
-            while(!signal) {
+        @NonNull
+        @Override
+        public State dispose() throws Throwable {
+            while (!signal) {
                 Thread.sleep(10);
             }
             return State.TO_DISPOSE;
         }
 
-        @NonNull @Override public String getDisplayName() {
+        @NonNull
+        @Override
+        public String getDisplayName() {
             return "Occupado";
         }
     }
@@ -393,12 +401,16 @@ public class AsyncResourceDisposerTest {
     private static final class SuccessfulDisposable implements Disposable {
         private static final long serialVersionUID = 4648005477636912909L;
 
-        @NonNull @Override public State dispose() {
+        @NonNull
+        @Override
+        public State dispose() {
             System.out.println("SD" + System.identityHashCode(this));
             return State.PURGED;
         }
 
-        @NonNull @Override public String getDisplayName() {
+        @NonNull
+        @Override
+        public String getDisplayName() {
             return "Yes, Sir!";
         }
     }

@@ -24,11 +24,9 @@
 package org.jenkinsci.plugins.resourcedisposer;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.XmlFile;
@@ -38,17 +36,6 @@ import hudson.util.DaemonThreadFactory;
 import hudson.util.ExceptionCatchingThreadFactory;
 import hudson.util.HttpResponses;
 import hudson.util.NamingThreadFactory;
-
-import jenkins.model.Jenkins;
-
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.DoNotUse;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.HttpResponse;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
-import org.kohsuke.stapler.interceptor.RequirePOST;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -63,6 +50,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jenkins.model.Jenkins;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * Track resources to be disposed asynchronously.
@@ -88,9 +83,9 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
     // Limit the number of threads to use at a time
     /*package*/ static final int MAXIMUM_POOL_SIZE = 10;
     private static final ExceptionCatchingThreadFactory THREAD_FACTORY = new ExceptionCatchingThreadFactory(
-            new NamingThreadFactory(new DaemonThreadFactory(), "AsyncResourceDisposer.worker")
-    );
-    // Can be static but instance field on a singleton does the job as well. Plus, it re-initializes between tests avoiding interference.
+            new NamingThreadFactory(new DaemonThreadFactory(), "AsyncResourceDisposer.worker"));
+    // Can be static but instance field on a singleton does the job as well. Plus, it re-initializes between tests
+    // avoiding interference.
     private transient ExecutorService worker;
 
     /**
@@ -133,13 +128,17 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
     @Override
     public boolean isActivated() {
-        if (backlog.isEmpty()) return false; // Optimization
+        if (backlog.isEmpty()) {
+            return false; // Optimization
+        }
 
         // Activated if it has items older than 4 hours
         long threshold = System.currentTimeMillis() - 4 * 60 * 60 * 1000;
-        for (WorkItem workItem: getBacklog()) {
+        for (WorkItem workItem : getBacklog()) {
             if (!workItem.getLastState().equals(Disposable.State.PURGED)) {
-                if (workItem.registered.getTime() < threshold) return true;
+                if (workItem.registered.getTime() < threshold) {
+                    return true;
+                }
             }
         }
         return false;
@@ -223,11 +222,12 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
     private XmlFile getConfigFile() {
         Jenkins instance = Jenkins.getInstanceOrNull();
-        if (instance == null) throw new IllegalStateException();
-        return new XmlFile(Jenkins.XSTREAM, new File(new File(
-                instance.root,
-                getClass().getCanonicalName() + ".xml"
-        ).getAbsolutePath()));
+        if (instance == null) {
+            throw new IllegalStateException();
+        }
+        return new XmlFile(
+                Jenkins.XSTREAM,
+                new File(new File(instance.root, getClass().getCanonicalName() + ".xml").getAbsolutePath()));
     }
 
     /**
@@ -242,7 +242,8 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
         private /*final*/ @NonNull Disposable disposable;
         private final @NonNull Date registered = new Date();
 
-        // There is no reason to serialize something here as after restart it will either succeed or fail again farly soon.
+        // There is no reason to serialize something here as after restart it will either succeed or fail again farly
+        // soon.
         private transient volatile @NonNull Disposable.State lastState = Disposable.State.TO_DISPOSE;
         private transient volatile boolean inProgress;
 
@@ -276,9 +277,12 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
             return "Disposer work item: " + disposable.getDisplayName();
         }
 
+        @Override
         public void run() {
             // Never run more than once at a time
-            if (inProgress) return;
+            if (inProgress) {
+                return;
+            }
 
             inProgress = true;
             try {
@@ -301,8 +305,12 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
 
             WorkItem workItem = (WorkItem) o;
 
@@ -379,10 +387,12 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
      */
     @VisibleForTesting
     public void reschedule() {
-        if (backlog.isEmpty()) return; // Noop if there is no load
+        if (backlog.isEmpty()) {
+            return; // Noop if there is no load
+        }
 
         persist(); // Trigger periodic updates to persist successful removals on best effort basis.
-        for (WorkItem workItem: getBacklog()) {
+        for (WorkItem workItem : getBacklog()) {
             if (workItem.inProgress) {
                 // No need to reschedule
                 LOGGER.log(Level.FINE, "{0} is in progress", workItem);
@@ -398,10 +408,12 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
      */
     @VisibleForTesting
     /*package*/ void rescheduleAndWait() throws InterruptedException {
-        if (backlog.isEmpty()) return;
+        if (backlog.isEmpty()) {
+            return;
+        }
 
         ArrayList<Future<?>> futures = new ArrayList<>();
-        for (WorkItem workItem: getBacklog()) {
+        for (WorkItem workItem : getBacklog()) {
             if (workItem.inProgress) {
                 // No need to reschedule
                 LOGGER.log(Level.FINE, "{0} is in progress", workItem);
