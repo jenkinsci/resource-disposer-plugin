@@ -33,9 +33,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Set;
+import org.htmlunit.html.HtmlPage;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
