@@ -9,7 +9,7 @@
   </parent>
 
   <artifactId>resource-disposer</artifactId>
-  <version>0.24</version>
+  <version>${revision}${changelist}</version>
   <packaging>hpi</packaging>
   <name>Resource Disposer Plugin</name>
   <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
@@ -37,12 +37,12 @@
   <scm>
     <connection>scm:git:https://github.com/${gitHubRepo}.git</connection>
     <developerConnection>scm:git:git@github.com:${gitHubRepo}.git</developerConnection>
-    <tag>resource-disposer-0.24</tag>
+    <tag>${scmTag}</tag>
     <url>https://github.com/${gitHubRepo}</url>
   </scm>
 
   <properties>
-    <revision>0.24</revision>
+    <revision>0.25</revision>
     <changelist>-SNAPSHOT</changelist>
     <jenkins.version>2.387.3</jenkins.version>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
