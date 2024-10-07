@@ -56,7 +56,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
@@ -186,7 +186,7 @@ public class AsyncResourceDisposer extends AdministrativeMonitor implements Seri
 
     @Restricted(DoNotUse.class)
     @RequirePOST
-    public HttpResponse doStopTracking(@QueryParameter int id, StaplerResponse rsp) {
+    public HttpResponse doStopTracking(@QueryParameter int id, StaplerResponse2 rsp) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         for (WorkItem workItem : getBacklog()) {
             if (workItem.getId() == id) {
