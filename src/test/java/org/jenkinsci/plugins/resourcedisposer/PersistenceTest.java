@@ -29,69 +29,82 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import java.io.Serial;
 import java.util.Set;
 import org.htmlunit.html.HtmlPage;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.JenkinsSessionRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-public class PersistenceTest {
-    @Rule
-    public JenkinsSessionRule sessions = new JenkinsSessionRule();
+@WithJenkins
+class PersistenceTest {
 
-    @Test
-    public void persistEntries() throws Throwable {
-        sessions.then(r -> {
-            AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-            disposer.disposeAndWait(new FailingDisposable()).get();
-            AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
+    private JenkinsRule r;
 
-            assertThat(item.getLastState(), instanceOf(Disposable.State.Thrown.class));
-            Disposable.State.Thrown failure = (Disposable.State.Thrown) item.getLastState();
-            assertThat(failure.getCause().getMessage(), equalTo(FailingDisposable.EXCEPTION.getMessage()));
-        });
-        sessions.then(r -> {
-            AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-            AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
-
-            Disposable.State lastState = item.getLastState();
-            // It is ok if this is not deserialized 100% same
-            assertTrue(
-                    "Failed or ready to be rechecked",
-                    (lastState instanceof Disposable.State.ToDispose)
-                            || (lastState instanceof Disposable.State.Thrown));
-        });
+    @BeforeEach
+    void setUp(JenkinsRule r) {
+        this.r = r;
     }
 
     @Test
-    public void recoverWhenDisposableCanNotBeDeserialized() throws Throwable {
-        sessions.then(r -> {
-            AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-            disposer.dispose(new DisappearingDisposable());
-            assertThat(disposer.getBacklog(), iterableWithSize(1));
-        });
-        sessions.then(r -> {
-            AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-            // Current implementation will remove it so the backlog will be empty - either way NPE should not be thrown
-            for (AsyncResourceDisposer.WorkItem item : disposer.getBacklog()) {
-                assertNotEquals(null, item.getDisposable());
-                assertNotNull(item.toString());
-            }
+    void persistEntries() throws Throwable {
 
-            JenkinsRule.WebClient wc = r.createWebClient();
-            HtmlPage page = wc.goTo("administrativeMonitor/AsyncResourceDisposer");
-            assertThat(page.getWebResponse().getContentAsString(), containsString("Asynchronous resource disposer"));
-            assertThat(page.getWebResponse().getContentAsString(), not(containsString("Exception")));
-        });
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+        disposer.disposeAndWait(new FailingDisposable()).get();
+        AsyncResourceDisposer.WorkItem item = checkItem(disposer.getBacklog());
+
+        assertThat(item.getLastState(), instanceOf(Disposable.State.Thrown.class));
+        Disposable.State.Thrown failure = (Disposable.State.Thrown) item.getLastState();
+        assertThat(failure.getCause().getMessage(), equalTo(FailingDisposable.EXCEPTION.getMessage()));
+
+        r.restart();
+
+        disposer = AsyncResourceDisposer.get();
+        item = checkItem(disposer.getBacklog());
+
+        Disposable.State lastState = item.getLastState();
+        // It is ok if this is not deserialized 100% same
+        assertTrue(
+                (lastState instanceof Disposable.State.ToDispose) || (lastState instanceof Disposable.State.Thrown),
+                "Failed or ready to be rechecked");
+    }
+
+    @Test
+    void recoverWhenDisposableCanNotBeDeserialized() throws Throwable {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+        disposer.dispose(new DisappearingDisposable());
+        assertThat(disposer.getBacklog(), iterableWithSize(1));
+
+        r.restart();
+
+        disposer = AsyncResourceDisposer.get();
+        // Current implementation will remove it so the backlog will be empty - either way NPE should not be thrown
+        for (AsyncResourceDisposer.WorkItem item : disposer.getBacklog()) {
+            assertNotEquals(null, item.getDisposable());
+            assertNotNull(item.toString());
+        }
+
+        JenkinsRule.WebClient wc = r.createWebClient();
+        HtmlPage page = wc.goTo("administrativeMonitor/AsyncResourceDisposer");
+        assertThat(page.getWebResponse().getContentAsString(), containsString("Asynchronous resource disposer"));
+        assertThat(page.getWebResponse().getContentAsString(), not(containsString("Exception")));
+    }
+
+    private static AsyncResourceDisposer.WorkItem checkItem(Set<AsyncResourceDisposer.WorkItem> backlog) {
+        assertThat(backlog, iterableWithSize(1));
+        AsyncResourceDisposer.WorkItem item = backlog.iterator().next();
+        assertThat(item.getDisposable(), instanceOf(FailingDisposable.class));
+        return item;
     }
 
     private static final class DisappearingDisposable implements Disposable {
+        @Serial
         private static final long serialVersionUID = 3007902823296336222L;
 
         @Override
@@ -104,16 +117,10 @@ public class PersistenceTest {
             return "Will disappear after restart";
         }
 
+        @Serial
         private Object readResolve() {
             // Simulate error while deserializing like when the plugin gets uninstalled
             return null;
         }
-    }
-
-    private AsyncResourceDisposer.WorkItem checkItem(Set<AsyncResourceDisposer.WorkItem> backlog) {
-        assertThat(backlog, iterableWithSize(1));
-        AsyncResourceDisposer.WorkItem item = backlog.iterator().next();
-        assertThat(item.getDisposable(), instanceOf(FailingDisposable.class));
-        return item;
     }
 }
