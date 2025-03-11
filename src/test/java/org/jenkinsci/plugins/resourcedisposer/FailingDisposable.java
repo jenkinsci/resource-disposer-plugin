@@ -25,11 +25,13 @@ package org.jenkinsci.plugins.resourcedisposer;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
+import java.io.Serial;
 
 /**
  * Fail attempts to dispose the resource every time.
  */
 class FailingDisposable implements Disposable {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     public static final String NAME = "Failing disposable";
