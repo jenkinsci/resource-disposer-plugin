@@ -46,7 +46,7 @@ THE SOFTWARE.
               <td>
                 <st:include page="cell.jelly" it="${item.lastState}"/>
               </td>
-              <td><span class="rd-track-date"><i:formatDate value="${item.registered}" pattern="yyyy-MM-dd HH:mm" type="both"/></span></td>
+              <td><span class="rd-track-date"><i:formatDate value="${item.registered}" pattern="yyyy-MM-dd HH:mm"/></span></td>
               <td>
                 <form action="./stopTracking" method="POST" name="stop-tracking-${item.id}">
                   <input name="id" type="hidden" value="${item.id}"/>

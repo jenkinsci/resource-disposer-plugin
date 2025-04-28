@@ -98,7 +98,7 @@ public class AsyncResourceDisposerTest {
         int itemId = item.getId();
         HtmlPage page = j.createWebClient().goTo(disposer.getUrl());
         page = page.getFormByName("stop-tracking-" + itemId)
-                .getInputByName("submit")
+                .getButtonByName("submit")
                 .click();
         assertThat(
                 page.getWebResponse().getContentAsString(),
