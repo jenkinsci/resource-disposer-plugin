@@ -1,0 +1,62 @@
+<!--
+The MIT License (MIT)
+
+Copyright (c) 2016 Red Hat, Inc.
+Copyright (c) 2025 Markus Winter
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:l="/lib/layout" xmlns:i="jelly:fmt">
+  <l:layout title="${it.displayName}" permission="${app.MANAGE}">
+    <st:include page="sidepanel.jelly" it="${app}"/>
+    <st:adjunct includes="org.jenkinsci.plugins.resourcedisposer.disposer"/>
+    <l:main-panel>
+      <l:app-bar title="${it.displayName}"/>
+      <table class="jenkins-table sortable">
+        <thead>
+          <tr>
+            <th>${%Resource}</th>
+            <th>${%State}</th>
+            <th>${%Tracked since}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <j:forEach var="item" items="${it.backlog}">
+            <tr>
+              <td>${item.disposable.displayName}</td>
+              <td>
+                <st:include page="cell.jelly" it="${item.lastState}"/>
+              </td>
+              <td><span class="rd-track-date"><i:formatDate value="${item.registered}" pattern="yyyy-MM-dd HH:mm" type="both"/></span></td>
+              <td>
+                <form action="./stopTracking" method="POST" name="stop-tracking-${item.id}">
+                  <input name="id" type="hidden" value="${item.id}"/>
+                  <button type="submit" class="jenkins-button" name="submit">${%Stop tracking}</button>
+                </form>
+              </td>
+            </tr>
+          </j:forEach>
+        </tbody>
+      </table>
+    </l:main-panel>
+  </l:layout>
+</j:jelly>
