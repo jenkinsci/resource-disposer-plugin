@@ -31,15 +31,16 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.util.OneShotEvent;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.Serial;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
@@ -54,19 +55,25 @@ import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.WebRequest;
 import org.htmlunit.html.HtmlPage;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-public class AsyncResourceDisposerTest {
+@WithJenkins
+class AsyncResourceDisposerTest {
 
-    @Rule
-    public final JenkinsRule j = new JenkinsRule();
+    private JenkinsRule j;
+
+    @BeforeEach
+    void setUp(JenkinsRule j) {
+        this.j = j;
+    }
 
     @Test
-    public void disposeImmediately() throws Throwable {
+    void disposeImmediately() throws Throwable {
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         Disposable disposable = new SuccessfulDisposable();
@@ -78,7 +85,7 @@ public class AsyncResourceDisposerTest {
     }
 
     @Test
-    public void neverDispose() throws Throwable {
+    void neverDispose() throws Throwable {
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         final IOException error = new IOException("to be thrown");
@@ -107,28 +114,8 @@ public class AsyncResourceDisposerTest {
         assertThat(disposer.getBacklog(), emptyCollectionOf(AsyncResourceDisposer.WorkItem.class));
     }
 
-    private static final class ThrowDisposable implements Disposable {
-        private static final long serialVersionUID = -6079270961651246596L;
-
-        private final Throwable ex;
-
-        ThrowDisposable(Throwable ex) {
-            this.ex = ex;
-        }
-
-        @Override
-        public @NonNull State dispose() throws Throwable {
-            throw ex;
-        }
-
-        @Override
-        public @NonNull String getDisplayName() {
-            return "Throwing";
-        }
-    }
-
     @Test
-    public void postponedDisposal() throws Throwable {
+    void postponedDisposal() throws Throwable {
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         StatefulDisposable disposable = new StatefulDisposable(
@@ -143,7 +130,7 @@ public class AsyncResourceDisposerTest {
     }
 
     @Test
-    public void combined() throws Throwable {
+    void combined() throws Throwable {
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         Disposable noProblem = new SuccessfulDisposable();
@@ -169,7 +156,7 @@ public class AsyncResourceDisposerTest {
     }
 
     @Test
-    public void showProblems() throws Exception {
+    void showProblems() throws Exception {
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         disposer.dispose(new FailingDisposable());
@@ -197,7 +184,7 @@ public class AsyncResourceDisposerTest {
     }
 
     @Test
-    public void collapseSameDisposables() {
+    void collapseSameDisposables() {
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         // Identical insatnces collapses
@@ -223,23 +210,9 @@ public class AsyncResourceDisposerTest {
         assertThat(disposer.getBacklog(), iterableWithSize(3));
     }
 
-    private static final class SameDisposable extends FailingDisposable {
-        private static final long serialVersionUID = 6769179986158394005L;
-
-        @Override
-        public int hashCode() {
-            return 73;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return obj instanceof SameDisposable;
-        }
-    }
-
     @Test
     @Issue("SECURITY-997")
-    public void security997() throws Exception {
+    void security997() throws Exception {
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         j.jenkins.setCrumbIssuer(null);
@@ -276,7 +249,7 @@ public class AsyncResourceDisposerTest {
     }
 
     @Test
-    public void concurrentDisposablesAreThrottled() throws InterruptedException {
+    void concurrentDisposablesAreThrottled() throws InterruptedException {
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
 
         final int MPS = AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
@@ -312,7 +285,37 @@ public class AsyncResourceDisposerTest {
         assertThat(disposer.getBacklog().size(), equalTo(MPS - 1));
     }
 
-    private ArrayList<BlockingDisposable> getActive(AsyncResourceDisposer disposer) {
+    @Test
+    void preventLivelockWithManyStalledInstances() throws Throwable {
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+
+        final int MPS = AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
+
+        // Fill with stalled
+        for (int i = 0; i < MPS; i++) {
+            disposer.dispose(new OccupyingDisposable());
+        }
+
+        for (int i = 0; i < 100; i++) {
+            disposer.dispose(new SuccessfulDisposable());
+        }
+
+        // All slots occupied
+        disposer.reschedule();
+        Thread.sleep(1000);
+        OccupyingDisposable.signal = true;
+        Thread.sleep(1000);
+        assertThat(disposer.getBacklog(), iterableWithSize(MPS));
+    }
+
+    private static void setInternalState(Object obj, String fieldName, Object newValue)
+            throws NoSuchFieldException, IllegalAccessException {
+        Field field = obj.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(obj, newValue);
+    }
+
+    private static ArrayList<BlockingDisposable> getActive(AsyncResourceDisposer disposer) {
         ArrayList<BlockingDisposable> bds = new ArrayList<>();
         for (AsyncResourceDisposer.WorkItem wa : disposer.getBacklog()) {
             BlockingDisposable disposable = (BlockingDisposable) wa.getDisposable();
@@ -323,8 +326,46 @@ public class AsyncResourceDisposerTest {
         return bds;
     }
 
+    private static final class SameDisposable extends FailingDisposable {
+        @Serial
+        private static final long serialVersionUID = 6769179986158394005L;
+
+        @Override
+        public int hashCode() {
+            return 73;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof SameDisposable;
+        }
+    }
+
+    private static final class ThrowDisposable implements Disposable {
+        @Serial
+        private static final long serialVersionUID = -6079270961651246596L;
+
+        private final Throwable ex;
+
+        ThrowDisposable(Throwable ex) {
+            this.ex = ex;
+        }
+
+        @Override
+        public @NonNull State dispose() throws Throwable {
+            throw ex;
+        }
+
+        @Override
+        public @NonNull String getDisplayName() {
+            return "Throwing";
+        }
+    }
+
     private static final class BlockingDisposable implements Disposable {
+        @Serial
         private static final long serialVersionUID = 4648005477636912909L;
+
         private final OneShotEvent start = new OneShotEvent();
         private final OneShotEvent end = new OneShotEvent();
 
@@ -347,37 +388,8 @@ public class AsyncResourceDisposerTest {
         }
     }
 
-    @Test
-    public void preventLivelockWithManyStalledInstances() throws Throwable {
-        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-
-        final int MPS = AsyncResourceDisposer.MAXIMUM_POOL_SIZE;
-
-        // Fill with stalled
-        for (int i = 0; i < MPS; i++) {
-            disposer.dispose(new OccupyingDisposable());
-        }
-
-        for (int i = 0; i < 100; i++) {
-            disposer.dispose(new SuccessfulDisposable());
-        }
-
-        // All slots occupied
-        disposer.reschedule();
-        Thread.sleep(1000);
-        OccupyingDisposable.signal = true;
-        Thread.sleep(1000);
-        assertThat(disposer.getBacklog(), iterableWithSize(MPS));
-    }
-
-    private void setInternalState(Object obj, String fieldName, Object newValue)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field field = obj.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(obj, newValue);
-    }
-
     private static final class OccupyingDisposable implements Disposable {
+        @Serial
         private static final long serialVersionUID = 4648005477636912909L;
 
         public static volatile boolean signal = false;
@@ -399,6 +411,7 @@ public class AsyncResourceDisposerTest {
     }
 
     private static final class SuccessfulDisposable implements Disposable {
+        @Serial
         private static final long serialVersionUID = 4648005477636912909L;
 
         @NonNull
@@ -417,6 +430,7 @@ public class AsyncResourceDisposerTest {
 
     private static final class StatefulDisposable implements Disposable {
 
+        @Serial
         private static final long serialVersionUID = 3830077773214369355L;
 
         private final List<Disposable.State> states;
