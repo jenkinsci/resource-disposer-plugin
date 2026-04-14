@@ -10,7 +10,7 @@ ifdef::env-github[]
 :warning-caption: :warning:
 endif::[]
 
-link:https://ci.jenkins.io/job/Plugins/job/resource-disposer-plugin/job/master/[image:https://ci.jenkins.io/job/Plugins/job/resource-disposer-plugin/job/master/badge/icon[Build Status]]
+link:https://ci.jenkins.io/job/Plugins/job/resource-disposer-plugin/job/master/[image:https://ci.jenkins.io/buildStatus/icon?job=Plugins%2Fresource-disposer-plugin%2Fmaster[Build Status]]
 link:https://github.com/jenkinsci/resource-disposer-plugin/graphs/contributors[image:https://img.shields.io/github/contributors/jenkinsci/resource-disposer-plugin.svg[Contributors]]
 link:https://plugins.jenkins.io/resource-disposer[image:https://img.shields.io/jenkins/plugin/v/resource-disposer.svg[Jenkins Plugin]]
 link:https://github.com/jenkinsci/resource-disposer-plugin/releases/latest[image:https://img.shields.io/github/release/jenkinsci/resource-disposer-plugin.svg?label=changelog[GitHub release]]
