@@ -1,0 +1,13 @@
+.rd-cause {
+  text-decoration: underline dotted;
+  margin-bottom: 0;
+}
+
+.rd-track-date {
+  white-space: nowrap;
+}
+
+.rd-tooltip {
+  font-family: var(--font-family-mono);
+  white-space: pre-wrap;
+}
